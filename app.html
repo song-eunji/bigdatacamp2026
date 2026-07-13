@@ -34,7 +34,7 @@
     }
     textarea { resize: vertical; min-height: 70px; }
     .row { display: flex; gap: 8px; }
-    .row > * { flex: 1; }
+    .row > * { flex: 1; margin-bottom: 0; }
     button {
         padding: 10px 16px;
         font-size: 14px;
@@ -50,28 +50,21 @@
     button.link { background: none; color: #2f6feb; padding: 0; margin: 0; font-size: 13px; text-decoration: underline; }
     .hint { font-size: 12px; color: #888; margin-top: 2px; margin-bottom: 8px; }
     .empty { color: #999; font-size: 14px; padding: 8px 0; }
+
+    /* 타임라인 (토글) */
     ul#timeline { list-style: none; padding: 0; margin: 0; }
-    ul#timeline li {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 8px 0;
-        border-bottom: 1px dashed #eee;
-    }
-    ul#timeline li:last-child { border-bottom: none; }
+    .log-item { border-bottom: 1px dashed #eee; }
+    .log-item:last-child { border-bottom: none; }
+    .log-summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; cursor: pointer; }
     .log-date { font-weight: bold; font-size: 13px; color: #2f6feb; white-space: nowrap; }
-    .tag {
-        display: inline-block;
-        font-size: 11px;
-        padding: 2px 7px;
-        border-radius: 10px;
-        background: #eef2ff;
-        color: #3b4fbf;
-        margin-left: 4px;
-        white-space: nowrap;
-    }
-    .log-text { flex: 1; font-size: 14px; white-space: pre-wrap; }
+    .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #eef2ff; color: #3b4fbf; margin-left: 4px; white-space: nowrap; }
+    .log-preview { flex: 1; font-size: 13px; color: #777; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chevron { font-size: 11px; color: #aaa; transition: transform 0.15s; flex-shrink: 0; }
+    .log-item.open .chevron { transform: rotate(90deg); }
+    .log-detail { display: none; padding: 0 0 10px 26px; }
+    .log-item.open .log-detail { display: block; }
+    .log-text { font-size: 14px; white-space: pre-wrap; margin-bottom: 6px; }
+
     #result { white-space: pre-wrap; font-size: 14px; background: #fafafa; border-radius: 6px; padding: 12px; margin-top: 10px; display: none; }
     #error { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
     #loading { font-size: 13px; color: #888; margin-top: 8px; display: none; }
@@ -120,7 +113,7 @@
             <option value="">희망 직무 선택</option>
             <option value="백엔드 개발자">백엔드 개발자</option>
             <option value="프론트엔드 개발자">프론트엔드 개발자</option>
-            <option value="데이터 분석가/사이언티스트">데이터 분석가/사이언티스트</option>
+            <option value="데이터 분석가/사이언티스트">데이터 분석가</option>
             <option value="PM/기획자">PM/기획자</option>
             <option value="디자이너">디자이너</option>
             <option value="마케터">마케터</option>
@@ -143,17 +136,29 @@
 </section>
 
 <section>
+    <h2>프로젝트</h2>
+    <select id="projectSelect"></select>
+    <div class="row">
+        <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
+        <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
+    </div>
+    <div class="hint">프로젝트별로 기록·캘린더·포트폴리오가 따로 관리돼요.</div>
+</section>
+
+<section>
     <h2>오늘 기록 (3줄 정도)</h2>
-    <textarea id="logInput" placeholder="예) 오늘은 RAG 구조를 처음 배웠다&#10;팀 PRD 초안을 완성했다&#10;배포까지 성공해서 뿌듯했다"></textarea>
     <select id="categorySelect">
         <option value="개발">개발</option>
         <option value="기획/문서">기획/문서</option>
         <option value="협업/회의">협업/회의</option>
         <option value="학습">학습</option>
+        <option value="문제해결">문제해결</option>
+        <option value="리더십">리더십</option>
         <option value="기타">기타</option>
     </select>
+    <textarea id="logInput"></textarea>
     <button id="saveBtn">저장</button>
-    <div class="hint">날짜는 자동으로 오늘 날짜로 기록돼요.</div>
+    <div class="hint">날짜는 자동으로 오늘 날짜로 기록돼요. 분류를 바꾸면 예시 문구도 바뀝니다.</div>
 </section>
 
 <section>
@@ -183,6 +188,18 @@
 <script>
     const LOGS_KEY = 'activityLogs';
     const PROFILE_KEY = 'profile';
+    const PROJECTS_KEY = 'projects';
+    const CURRENT_PROJECT_KEY = 'currentProjectId';
+
+    const CATEGORY_PLACEHOLDERS = {
+        '개발': 'API 연동 코드를 처음부터 짜봤다\n버그를 3시간 동안 추적해서 해결했다\n리팩토링해서 코드가 더 깔끔해졌다',
+        '기획/문서': '팀 PRD 초안을 작성했다\n요구사항을 우선순위별로 정리했다\n발표자료 스토리라인을 짰다',
+        '협업/회의': '팀원 의견 차이를 조율해서 합의를 이끌어냈다\n스탠드업 미팅에서 진행상황을 공유했다\n다른 팀원 코드리뷰를 도와줬다',
+        '학습': 'RAG 개념을 처음 배우고 직접 구현해봤다\n새로운 라이브러리 문서를 읽고 적용했다\n모르는 개념을 질문해서 이해했다',
+        '문제해결': '배포가 안 되는 원인을 끝까지 추적해서 해결했다\n예상 못한 엣지케이스를 발견하고 수정했다\n막힌 부분을 다른 방법으로 우회해서 풀었다',
+        '리더십': '팀 역할 분담을 주도적으로 제안했다\n의견이 갈릴 때 방향을 정리해서 이끌었다\n일정이 밀리는 팀원을 도와 마감을 맞췄다',
+        '기타': '새로운 도구를 사용해봤다\n캠프에서 네트워킹을 했다\n그 밖의 특별한 경험을 했다',
+    };
 
     const timelineEl = document.getElementById('timeline');
     const emptyStateEl = document.getElementById('emptyState');
@@ -192,8 +209,12 @@
     const loadingEl = document.getElementById('loading');
     const apiKeyEl = document.getElementById('apiKey');
     const filterBarEl = document.getElementById('filterBar');
+    const logInputEl = document.getElementById('logInput');
+    const categorySelectEl = document.getElementById('categorySelect');
+    const projectSelectEl = document.getElementById('projectSelect');
 
-    let selectedDate = null; // 캘린더에서 선택된 날짜(YYYY-MM-DD) 필터
+    let selectedDate = null;      // 캘린더에서 선택된 날짜(YYYY-MM-DD) 필터
+    let currentProjectId = null;  // 현재 선택된 프로젝트
 
     // ── API 키 (로컬 테스트용) ─────────────────────────────
     apiKeyEl.value = localStorage.getItem('openaiKey') || '';
@@ -212,17 +233,81 @@
         return div.innerHTML;
     }
 
+    // ── 프로젝트 ─────────────────────────────
+    function loadProjects() {
+        try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]'); }
+        catch (e) { return []; }
+    }
+
+    function saveProjects(projects) {
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    }
+
+    function ensureProjects() {
+        let projects = loadProjects();
+        if (projects.length === 0) {
+            const defaultProject = { id: Date.now(), name: '기본 프로젝트' };
+            projects = [defaultProject];
+            saveProjects(projects);
+
+            // 프로젝트 개념이 생기기 전에 저장된 로그는 기본 프로젝트로 편입
+            const logs = loadLogs();
+            let changed = false;
+            logs.forEach(l => { if (!l.projectId) { l.projectId = defaultProject.id; changed = true; } });
+            if (changed) saveLogs(logs);
+        }
+        return projects;
+    }
+
+    function renderProjectSelect() {
+        const projects = loadProjects();
+        projectSelectEl.innerHTML = '';
+        projects.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (p.id === currentProjectId) opt.selected = true;
+            projectSelectEl.appendChild(opt);
+        });
+    }
+
+    projectSelectEl.addEventListener('change', () => {
+        currentProjectId = Number(projectSelectEl.value);
+        localStorage.setItem(CURRENT_PROJECT_KEY, String(currentProjectId));
+        selectedDate = null;
+        renderAll();
+    });
+
+    document.getElementById('addProjectBtn').addEventListener('click', () => {
+        const nameInput = document.getElementById('newProjectName');
+        const name = nameInput.value.trim();
+        if (!name) return;
+
+        const projects = loadProjects();
+        const newProject = { id: Date.now(), name };
+        projects.push(newProject);
+        saveProjects(projects);
+
+        currentProjectId = newProject.id;
+        localStorage.setItem(CURRENT_PROJECT_KEY, String(currentProjectId));
+        nameInput.value = '';
+        selectedDate = null;
+        renderProjectSelect();
+        renderAll();
+    });
+
     // ── 로그 저장/조회 ─────────────────────────────
     function loadLogs() {
-        try {
-            return JSON.parse(localStorage.getItem(LOGS_KEY) || '[]');
-        } catch (e) {
-            return [];
-        }
+        try { return JSON.parse(localStorage.getItem(LOGS_KEY) || '[]'); }
+        catch (e) { return []; }
     }
 
     function saveLogs(logs) {
         localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+    }
+
+    function logsForCurrentProject() {
+        return loadLogs().filter(l => l.projectId === currentProjectId);
     }
 
     function deleteLog(id) {
@@ -230,25 +315,26 @@
         renderAll();
     }
 
+    categorySelectEl.addEventListener('change', () => {
+        logInputEl.placeholder = CATEGORY_PLACEHOLDERS[categorySelectEl.value] || '';
+    });
+
     document.getElementById('saveBtn').addEventListener('click', () => {
-        const text = document.getElementById('logInput').value.trim();
+        const text = logInputEl.value.trim();
         if (!text) return; // 공백만 있을 때 저장 방지
 
-        const category = document.getElementById('categorySelect').value;
+        const category = categorySelectEl.value;
         const logs = loadLogs();
-        logs.push({ id: Date.now(), date: todayStr(), text: text.slice(0, 500), category });
+        logs.push({ id: Date.now(), date: todayStr(), text: text.slice(0, 500), category, projectId: currentProjectId });
         saveLogs(logs);
-        document.getElementById('logInput').value = '';
+        logInputEl.value = '';
         renderAll();
     });
 
     // ── 프로필 ─────────────────────────────
     function loadProfile() {
-        try {
-            return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
-        } catch (e) {
-            return null;
-        }
+        try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); }
+        catch (e) { return null; }
     }
 
     function saveProfile(profile) {
@@ -291,7 +377,7 @@
 
     // ── 캘린더 ─────────────────────────────
     function renderCalendar() {
-        const logs = loadLogs();
+        const logs = logsForCurrentProject();
         const logDates = new Set(logs.map(l => l.date));
 
         const now = new Date();
@@ -333,16 +419,16 @@
             grid.appendChild(el);
         }
 
-        // 카테고리 분포
+        // 카테고리 분포 (현재 프로젝트 기준)
         const counts = {};
         logs.forEach(l => { counts[l.category || '기타'] = (counts[l.category || '기타'] || 0) + 1; });
         const countStr = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ');
         document.getElementById('catCounts').textContent = countStr ? `분류별 기록: ${countStr}` : '';
     }
 
-    // ── 타임라인 ─────────────────────────────
+    // ── 타임라인 (토글형) ─────────────────────────────
     function renderTimeline() {
-        const allLogs = loadLogs();
+        const allLogs = logsForCurrentProject();
         const logs = selectedDate ? allLogs.filter(l => l.date === selectedDate) : allLogs;
 
         filterBarEl.style.display = selectedDate ? 'block' : 'none';
@@ -355,7 +441,7 @@
         } else if (logs.length === 0) {
             emptyStateEl.textContent = '이 날짜엔 기록이 없어요.';
             emptyStateEl.style.display = 'block';
-            genBtn.disabled = false; // 필터 중이어도 전체 기록은 있으므로 생성은 가능
+            genBtn.disabled = false; // 필터 중이어도 프로젝트 전체 기록은 있으므로 생성 가능
         } else {
             emptyStateEl.style.display = 'none';
             genBtn.disabled = false;
@@ -363,12 +449,28 @@
 
         logs.slice().reverse().forEach(log => {
             const li = document.createElement('li');
+            li.className = 'log-item';
+            const firstLine = log.text.split('\n')[0];
+            const preview = firstLine.length > 24 ? firstLine.slice(0, 24) + '…' : firstLine;
+
             li.innerHTML = `
-                <span class="log-date">${log.date}<span class="tag">${escapeHtml(log.category || '기타')}</span></span>
-                <span class="log-text">${escapeHtml(log.text)}</span>
-                <button class="secondary" data-id="${log.id}">삭제</button>
+                <div class="log-summary">
+                    <span class="log-date">${log.date}<span class="tag">${escapeHtml(log.category || '기타')}</span></span>
+                    <span class="log-preview">${escapeHtml(preview)}</span>
+                    <span class="chevron">▸</span>
+                </div>
+                <div class="log-detail">
+                    <div class="log-text">${escapeHtml(log.text)}</div>
+                    <button class="secondary" data-id="${log.id}">삭제</button>
+                </div>
             `;
-            li.querySelector('button').addEventListener('click', () => deleteLog(log.id));
+            li.querySelector('.log-summary').addEventListener('click', () => {
+                li.classList.toggle('open');
+            });
+            li.querySelector('button').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteLog(log.id);
+            });
             timelineEl.appendChild(li);
         });
     }
@@ -385,7 +487,7 @@
 
     // ── 포트폴리오 생성 ─────────────────────────────
     genBtn.addEventListener('click', async () => {
-        const logs = loadLogs();
+        const logs = logsForCurrentProject();
         if (logs.length === 0) return;
 
         const apiKey = apiKeyEl.value.trim();
@@ -396,6 +498,8 @@
         loadingEl.style.display = 'block';
         genBtn.disabled = true;
 
+        const projects = loadProjects();
+        const project = projects.find(p => p.id === currentProjectId);
         const logText = logs.map(l => `[${l.date}][${l.category || '기타'}] ${l.text}`).join('\n');
         const profile = loadProfile();
 
@@ -406,13 +510,14 @@
             directionAsk = `- 마지막에 "🎯 ${profile.job} 관점 방향성 제안" 섹션을 추가하고, 강점 1줄 · 보완할 점 1줄 · 다음에 시도하면 좋을 활동 1줄을 불릿으로 제시\n`;
         }
 
-        const prompt = `아래는 한 사람이 캠프/프로젝트 기간 동안 매일 남긴 짧은 활동 기록입니다. 각 줄은 [날짜][분류] 텍스트 형식입니다.
+        const prompt = `아래는 "${project ? project.name : '프로젝트'}" 기간 동안 매일 남긴 짧은 활동 기록입니다. 각 줄은 [날짜][분류] 텍스트 형식입니다.
 이 기록들을 근거로 "성장 스토리형 포트폴리오 초안"을 작성해주세요.
 ${profileLine}
 요구사항:
+- 제목에 프로젝트 이름("${project ? project.name : ''}")을 포함
 - 시간순으로 어떤 역량/경험이 어떻게 쌓였는지 한 편의 짧은 스토리처럼 서술
 - 문단마다 근거가 된 날짜를 괄호로 표시 (예: (07/13))
-- 분류(개발/기획/협업/학습 등) 분포에 대한 짧은 코멘트 한 줄 추가
+- 분류(개발/기획/협업/학습/문제해결/리더십 등) 분포에 대한 짧은 코멘트 한 줄 추가
 - 마지막에 "핵심 성과 3줄 요약"을 불릿으로 추가
 ${directionAsk}- 과장하지 말고 기록에 있는 내용만 근거로 사용
 - 한국어로, 900자 내외
@@ -451,7 +556,11 @@ ${logText}`;
         errorEl.style.display = 'block';
     }
 
-    // ── 초기 렌더 ─────────────────────────────
+    // ── 초기화 ─────────────────────────────
+    ensureProjects();
+    currentProjectId = Number(localStorage.getItem(CURRENT_PROJECT_KEY)) || loadProjects()[0].id;
+    renderProjectSelect();
+    logInputEl.placeholder = CATEGORY_PLACEHOLDERS[categorySelectEl.value] || '';
     renderProfile();
     renderAll();
 </script>
