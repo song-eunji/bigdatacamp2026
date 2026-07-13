@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>활동 기록 → 포트폴리오 생성기</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        font-family: -apple-system, "Malgun Gothic", Arial, sans-serif;
+        max-width: 640px;
+        margin: 40px auto;
+        padding: 0 16px;
+        color: #222;
+        line-height: 1.5;
+    }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .sub { color: #777; font-size: 14px; margin-bottom: 24px; }
+    section {
+        border: 1px solid #e3e3e3;
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin-bottom: 16px;
+    }
+    section h2 { font-size: 15px; margin: 0 0 10px; color: #444; }
+    input[type="password"], input[type="text"], textarea, select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        margin-bottom: 8px;
+    }
+    textarea { resize: vertical; min-height: 70px; }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    button {
+        padding: 10px 16px;
+        font-size: 14px;
+        border: none;
+        border-radius: 6px;
+        background: #2f6feb;
+        color: #fff;
+        cursor: pointer;
+        margin-top: 4px;
+    }
+    button:disabled { background: #b9c6dd; cursor: not-allowed; }
+    button.secondary { background: #eee; color: #333; padding: 4px 10px; margin: 0; font-size: 12px; }
+    button.link { background: none; color: #2f6feb; padding: 0; margin: 0; font-size: 13px; text-decoration: underline; }
+    .hint { font-size: 12px; color: #888; margin-top: 2px; margin-bottom: 8px; }
+    .empty { color: #999; font-size: 14px; padding: 8px 0; }
+    ul#timeline { list-style: none; padding: 0; margin: 0; }
+    ul#timeline li {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px dashed #eee;
+    }
+    ul#timeline li:last-child { border-bottom: none; }
+    .log-date { font-weight: bold; font-size: 13px; color: #2f6feb; white-space: nowrap; }
+    .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        background: #eef2ff;
+        color: #3b4fbf;
+        margin-left: 4px;
+        white-space: nowrap;
+    }
+    .log-text { flex: 1; font-size: 14px; white-space: pre-wrap; }
+    #result { white-space: pre-wrap; font-size: 14px; background: #fafafa; border-radius: 6px; padding: 12px; margin-top: 10px; display: none; }
+    #error { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
+    #loading { font-size: 13px; color: #888; margin-top: 8px; display: none; }
+
+    /* 프로필 */
+    #profileSummary { font-size: 13px; color: #444; }
+    #profileForm { display: none; }
+    #profileForm.open { display: block; }
+    .banner {
+        font-size: 12px; background: #fff8e6; border: 1px solid #ffe4a3;
+        border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
+    }
+
+    /* 캘린더 */
+    #calendarHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #555; }
+    #calendarGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-weekday { text-align: center; font-size: 11px; color: #999; padding: 4px 0; }
+    .cal-day {
+        text-align: center; font-size: 13px; padding: 8px 0; border-radius: 6px;
+        cursor: pointer; position: relative; color: #333;
+    }
+    .cal-day.empty { cursor: default; }
+    .cal-day.has-log { background: #eef2ff; font-weight: bold; color: #2f6feb; }
+    .cal-day.selected { background: #2f6feb; color: #fff; }
+    .cal-day.today { border: 1px solid #2f6feb; }
+    .catCounts { font-size: 12px; color: #777; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>활동 기록 → 포트폴리오 생성기</h1>
+<div class="sub">매일 3줄만 남기면, 쌓인 기록으로 성장 스토리 초안을 만들어드려요.</div>
+
+<section>
+    <h2>OpenAI API 키</h2>
+    <input type="password" id="apiKey" placeholder="sk-...">
+    <div class="hint">이 브라우저에만 저장됩니다(로컬 테스트용). 실제 배포 시에는 서버 함수로 옮겨서 키를 감춰야 해요.</div>
+</section>
+
+<section>
+    <h2>내 프로필 (선택)</h2>
+    <div id="profileSummary"></div>
+    <div id="profileForm">
+        <div class="banner">희망 직무·학년을 설정하면 포트폴리오 초안에 "방향성 제안"이 추가돼요. 입력 안 해도 기본 초안은 그대로 생성됩니다.</div>
+        <select id="jobSelect">
+            <option value="">희망 직무 선택</option>
+            <option value="백엔드 개발자">백엔드 개발자</option>
+            <option value="프론트엔드 개발자">프론트엔드 개발자</option>
+            <option value="데이터 분석가/사이언티스트">데이터 분석가/사이언티스트</option>
+            <option value="PM/기획자">PM/기획자</option>
+            <option value="디자이너">디자이너</option>
+            <option value="마케터">마케터</option>
+            <option value="기타">기타(직접 입력)</option>
+        </select>
+        <input type="text" id="jobCustom" placeholder="희망 직무 직접 입력" style="display:none;">
+        <select id="yearSelect">
+            <option value="">학년/상태 선택</option>
+            <option value="1학년">1학년</option>
+            <option value="2학년">2학년</option>
+            <option value="3학년">3학년</option>
+            <option value="4학년">4학년</option>
+            <option value="휴학중">휴학중</option>
+            <option value="취업준비생">취업준비생</option>
+            <option value="직장인">직장인</option>
+            <option value="기타">기타</option>
+        </select>
+        <button id="saveProfileBtn">프로필 저장</button>
+    </div>
+</section>
+
+<section>
+    <h2>오늘 기록 (3줄 정도)</h2>
+    <textarea id="logInput" placeholder="예) 오늘은 RAG 구조를 처음 배웠다&#10;팀 PRD 초안을 완성했다&#10;배포까지 성공해서 뿌듯했다"></textarea>
+    <select id="categorySelect">
+        <option value="개발">개발</option>
+        <option value="기획/문서">기획/문서</option>
+        <option value="협업/회의">협업/회의</option>
+        <option value="학습">학습</option>
+        <option value="기타">기타</option>
+    </select>
+    <button id="saveBtn">저장</button>
+    <div class="hint">날짜는 자동으로 오늘 날짜로 기록돼요.</div>
+</section>
+
+<section>
+    <h2>캘린더</h2>
+    <div id="calendarHeader"></div>
+    <div id="calendarGrid"></div>
+    <div class="catCounts" id="catCounts"></div>
+</section>
+
+<section>
+    <h2>타임라인</h2>
+    <div id="filterBar" style="display:none; margin-bottom:8px;">
+        <button class="secondary" id="clearFilterBtn">전체보기</button>
+    </div>
+    <div id="emptyState" class="empty">아직 기록이 없어요. 위에서 첫 기록을 남겨보세요.</div>
+    <ul id="timeline"></ul>
+</section>
+
+<section>
+    <h2>포트폴리오 초안 생성</h2>
+    <button id="genBtn" disabled>지금까지 기록으로 초안 만들기</button>
+    <div id="loading">생성 중...</div>
+    <div id="error"></div>
+    <div id="result"></div>
+</section>
+
+<script>
+    const LOGS_KEY = 'activityLogs';
+    const PROFILE_KEY = 'profile';
+
+    const timelineEl = document.getElementById('timeline');
+    const emptyStateEl = document.getElementById('emptyState');
+    const genBtn = document.getElementById('genBtn');
+    const resultEl = document.getElementById('result');
+    const errorEl = document.getElementById('error');
+    const loadingEl = document.getElementById('loading');
+    const apiKeyEl = document.getElementById('apiKey');
+    const filterBarEl = document.getElementById('filterBar');
+
+    let selectedDate = null; // 캘린더에서 선택된 날짜(YYYY-MM-DD) 필터
+
+    // ── API 키 (로컬 테스트용) ─────────────────────────────
+    apiKeyEl.value = localStorage.getItem('openaiKey') || '';
+    apiKeyEl.addEventListener('change', () => {
+        localStorage.setItem('openaiKey', apiKeyEl.value.trim());
+    });
+
+    // ── 유틸 ─────────────────────────────
+    function todayStr() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.innerText = str;
+        return div.innerHTML;
+    }
+
+    // ── 로그 저장/조회 ─────────────────────────────
+    function loadLogs() {
+        try {
+            return JSON.parse(localStorage.getItem(LOGS_KEY) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveLogs(logs) {
+        localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+    }
+
+    function deleteLog(id) {
+        saveLogs(loadLogs().filter(l => l.id !== id));
+        renderAll();
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', () => {
+        const text = document.getElementById('logInput').value.trim();
+        if (!text) return; // 공백만 있을 때 저장 방지
+
+        const category = document.getElementById('categorySelect').value;
+        const logs = loadLogs();
+        logs.push({ id: Date.now(), date: todayStr(), text: text.slice(0, 500), category });
+        saveLogs(logs);
+        document.getElementById('logInput').value = '';
+        renderAll();
+    });
+
+    // ── 프로필 ─────────────────────────────
+    function loadProfile() {
+        try {
+            return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function saveProfile(profile) {
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    }
+
+    function renderProfile() {
+        const profile = loadProfile();
+        const summaryEl = document.getElementById('profileSummary');
+        const formEl = document.getElementById('profileForm');
+
+        if (profile && profile.job) {
+            summaryEl.innerHTML = `설정됨: <b>${escapeHtml(profile.year || '-')}</b> · 희망 직무 <b>${escapeHtml(profile.job)}</b> &nbsp;
+                <button class="link" id="editProfileBtn">수정</button>`;
+            formEl.classList.remove('open');
+            document.getElementById('editProfileBtn').addEventListener('click', () => {
+                formEl.classList.add('open');
+            });
+        } else {
+            summaryEl.innerHTML = '';
+            formEl.classList.add('open');
+        }
+    }
+
+    document.getElementById('jobSelect').addEventListener('change', (e) => {
+        document.getElementById('jobCustom').style.display = (e.target.value === '기타') ? 'block' : 'none';
+    });
+
+    document.getElementById('saveProfileBtn').addEventListener('click', () => {
+        const jobSelect = document.getElementById('jobSelect').value;
+        const jobCustom = document.getElementById('jobCustom').value.trim();
+        const job = jobSelect === '기타' ? (jobCustom || '기타') : jobSelect;
+        const year = document.getElementById('yearSelect').value;
+
+        if (!job && !year) { renderProfile(); return; } // 둘 다 비었으면 그냥 무시(선택사항)
+
+        saveProfile({ job, year });
+        renderProfile();
+    });
+
+    // ── 캘린더 ─────────────────────────────
+    function renderCalendar() {
+        const logs = loadLogs();
+        const logDates = new Set(logs.map(l => l.date));
+
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth(); // 0-indexed
+        const firstDay = new Date(year, month, 1).getDay(); // 0=일
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        document.getElementById('calendarHeader').textContent = `${year}년 ${month + 1}월`;
+
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        ['일', '월', '화', '수', '목', '금', '토'].forEach(w => {
+            const el = document.createElement('div');
+            el.className = 'cal-weekday';
+            el.textContent = w;
+            grid.appendChild(el);
+        });
+
+        for (let i = 0; i < firstDay; i++) {
+            const el = document.createElement('div');
+            el.className = 'cal-day empty';
+            grid.appendChild(el);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const el = document.createElement('div');
+            el.className = 'cal-day';
+            if (logDates.has(dateStr)) el.classList.add('has-log');
+            if (dateStr === todayStr()) el.classList.add('today');
+            if (dateStr === selectedDate) el.classList.add('selected');
+            el.textContent = d;
+            el.addEventListener('click', () => {
+                selectedDate = (selectedDate === dateStr) ? null : dateStr;
+                renderAll();
+            });
+            grid.appendChild(el);
+        }
+
+        // 카테고리 분포
+        const counts = {};
+        logs.forEach(l => { counts[l.category || '기타'] = (counts[l.category || '기타'] || 0) + 1; });
+        const countStr = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ');
+        document.getElementById('catCounts').textContent = countStr ? `분류별 기록: ${countStr}` : '';
+    }
+
+    // ── 타임라인 ─────────────────────────────
+    function renderTimeline() {
+        const allLogs = loadLogs();
+        const logs = selectedDate ? allLogs.filter(l => l.date === selectedDate) : allLogs;
+
+        filterBarEl.style.display = selectedDate ? 'block' : 'none';
+        timelineEl.innerHTML = '';
+
+        if (allLogs.length === 0) {
+            emptyStateEl.textContent = '아직 기록이 없어요. 위에서 첫 기록을 남겨보세요.';
+            emptyStateEl.style.display = 'block';
+            genBtn.disabled = true;
+        } else if (logs.length === 0) {
+            emptyStateEl.textContent = '이 날짜엔 기록이 없어요.';
+            emptyStateEl.style.display = 'block';
+            genBtn.disabled = false; // 필터 중이어도 전체 기록은 있으므로 생성은 가능
+        } else {
+            emptyStateEl.style.display = 'none';
+            genBtn.disabled = false;
+        }
+
+        logs.slice().reverse().forEach(log => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="log-date">${log.date}<span class="tag">${escapeHtml(log.category || '기타')}</span></span>
+                <span class="log-text">${escapeHtml(log.text)}</span>
+                <button class="secondary" data-id="${log.id}">삭제</button>
+            `;
+            li.querySelector('button').addEventListener('click', () => deleteLog(log.id));
+            timelineEl.appendChild(li);
+        });
+    }
+
+    document.getElementById('clearFilterBtn').addEventListener('click', () => {
+        selectedDate = null;
+        renderAll();
+    });
+
+    function renderAll() {
+        renderCalendar();
+        renderTimeline();
+    }
+
+    // ── 포트폴리오 생성 ─────────────────────────────
+    genBtn.addEventListener('click', async () => {
+        const logs = loadLogs();
+        if (logs.length === 0) return;
+
+        const apiKey = apiKeyEl.value.trim();
+        if (!apiKey) { showError('API 키를 먼저 입력해주세요.'); return; }
+
+        errorEl.style.display = 'none';
+        resultEl.style.display = 'none';
+        loadingEl.style.display = 'block';
+        genBtn.disabled = true;
+
+        const logText = logs.map(l => `[${l.date}][${l.category || '기타'}] ${l.text}`).join('\n');
+        const profile = loadProfile();
+
+        let profileLine = '';
+        let directionAsk = '';
+        if (profile && profile.job) {
+            profileLine = `\n이 사람의 상태: ${profile.year || '미상'}, 희망 직무: ${profile.job}\n`;
+            directionAsk = `- 마지막에 "🎯 ${profile.job} 관점 방향성 제안" 섹션을 추가하고, 강점 1줄 · 보완할 점 1줄 · 다음에 시도하면 좋을 활동 1줄을 불릿으로 제시\n`;
+        }
+
+        const prompt = `아래는 한 사람이 캠프/프로젝트 기간 동안 매일 남긴 짧은 활동 기록입니다. 각 줄은 [날짜][분류] 텍스트 형식입니다.
+이 기록들을 근거로 "성장 스토리형 포트폴리오 초안"을 작성해주세요.
+${profileLine}
+요구사항:
+- 시간순으로 어떤 역량/경험이 어떻게 쌓였는지 한 편의 짧은 스토리처럼 서술
+- 문단마다 근거가 된 날짜를 괄호로 표시 (예: (07/13))
+- 분류(개발/기획/협업/학습 등) 분포에 대한 짧은 코멘트 한 줄 추가
+- 마지막에 "핵심 성과 3줄 요약"을 불릿으로 추가
+${directionAsk}- 과장하지 말고 기록에 있는 내용만 근거로 사용
+- 한국어로, 900자 내외
+
+기록:
+${logText}`;
+
+        try {
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }] })
+            });
+
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                throw new Error(errBody?.error?.message || `요청 실패 (status ${res.status})`);
+            }
+
+            const data = await res.json();
+            const draft = data.choices?.[0]?.message?.content?.trim();
+            if (!draft) throw new Error('응답에서 결과를 찾지 못했어요.');
+
+            resultEl.textContent = draft;
+            resultEl.style.display = 'block';
+        } catch (e) {
+            showError(e.message || '알 수 없는 오류가 발생했어요.');
+        } finally {
+            loadingEl.style.display = 'none';
+            genBtn.disabled = false;
+        }
+    });
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+    }
+
+    // ── 초기 렌더 ─────────────────────────────
+    renderProfile();
+    renderAll();
+</script>
+</body>
+</html>
