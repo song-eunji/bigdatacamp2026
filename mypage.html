@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마이페이지</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+<main class="auth-page">
+    <div class="top-nav">
+        <a href="index.html">← 홈으로 돌아가기</a>
+        <span></span>
+    </div>
+    <h1>마이페이지</h1>
+
+    <section>
+        <div class="mypage-profile">
+            <img id="profileImage" class="mypage-avatar" alt="프로필 사진">
+            <div>
+                <h2 id="profileName" style="margin:0;">-</h2>
+                <div id="profileEmail" class="mypage-email">-</div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>활동 통계</h2>
+        <div class="mypage-stat-row">
+            <div class="mypage-stat-card"><strong id="logCount">0</strong><span>작성한 활동 기록</span></div>
+            <div class="mypage-stat-card"><strong id="portfolioCount">0</strong><span>생성한 포트폴리오</span></div>
+        </div>
+    </section>
+
+    <section>
+        <h2>내 정보</h2>
+        <div class="mypage-info-summary">
+            <div><span>이름</span><strong id="infoName">-</strong></div>
+            <div><span>학년/상태</span><strong id="infoYear">-</strong></div>
+            <div><span>희망 직무</span><strong id="infoJob">-</strong></div>
+        </div>
+    </section>
+
+    <section>
+        <h2>정보 수정</h2>
+        <form id="profileForm" class="mypage-form">
+            <label for="nameInput">이름</label>
+            <input id="nameInput" type="text" placeholder="이름">
+            <label for="yearInput">학년/상태</label>
+            <select id="yearInput">
+                <option value="">학년/상태 선택</option>
+                <option value="1학년">1학년</option>
+                <option value="2학년">2학년</option>
+                <option value="3학년">3학년</option>
+                <option value="4학년">4학년</option>
+                <option value="휴학중">휴학중</option>
+                <option value="취업준비생">취업준비생</option>
+                <option value="직장인">직장인</option>
+                <option value="기타">기타</option>
+            </select>
+            <label for="jobInput">희망 직무</label>
+            <select id="jobInput">
+                <option value="">희망 직무 선택</option>
+                <option value="백엔드 개발자">백엔드 개발자</option>
+                <option value="프론트엔드 개발자">프론트엔드 개발자</option>
+                <option value="데이터 분석가/사이언티스트">데이터 분석가</option>
+                <option value="PM/기획자">PM/기획자</option>
+                <option value="디자이너">디자이너</option>
+                <option value="마케터">마케터</option>
+                <option value="기타">기타</option>
+            </select>
+            <label for="avatarInput">프로필 사진</label>
+            <input id="avatarInput" type="file" accept="image/*">
+            <button type="submit">저장</button>
+            <div id="profileMessage" class="mypage-message" role="status"></div>
+        </form>
+    </section>
+
+    <div class="mypage-actions">
+        <button id="logoutButton" type="button">로그아웃</button>
+    </div>
+</main>
+<script>
+    const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const fallbackAvatar = 'profile-default.svg';
+    const AVATAR_DB = 'localProfileData';
+    const AVATAR_STORE = 'avatars';
+    let currentUser;
+
+    function openAvatarDb() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(AVATAR_DB, 1);
+            request.onupgradeneeded = () => request.result.createObjectStore(AVATAR_STORE);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getLocalAvatar(userId) {
+        const db = await openAvatarDb();
+        return new Promise((resolve, reject) => {
+            const request = db.transaction(AVATAR_STORE).objectStore(AVATAR_STORE).get(userId);
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function saveLocalAvatar(userId, file) {
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+        });
+        const db = await openAvatarDb();
+        return new Promise((resolve, reject) => {
+            const request = db.transaction(AVATAR_STORE, 'readwrite').objectStore(AVATAR_STORE).put(dataUrl, userId);
+            request.onsuccess = () => resolve(dataUrl);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function loadMypage() {
+        const { data: { user } } = await client.auth.getUser();
+        if (!user || user.is_anonymous) {
+            window.location.href = 'login.html';
+            return;
+        }
+        currentUser = user;
+
+        const { data: profile } = await client.from('profiles')
+            .select('job, year')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        const name = user.user_metadata?.name || user.email?.split('@')[0] || '-';
+        const localAvatar = await getLocalAvatar(user.id).catch(() => null);
+        const avatar = localAvatar || user.user_metadata?.avatar_url || fallbackAvatar;
+        document.getElementById('profileName').textContent = name;
+        document.getElementById('profileEmail').textContent = user.email || '-';
+        document.getElementById('profileImage').src = avatar;
+        document.getElementById('nameInput').value = name === '-' ? '' : name;
+        document.getElementById('yearInput').value = profile?.year || '';
+        document.getElementById('infoName').textContent = name;
+        document.getElementById('infoYear').textContent = profile?.year || '-';
+        document.getElementById('infoJob').textContent = profile?.job || '-';
+        const jobInput = document.getElementById('jobInput');
+        if (profile?.job && ![...jobInput.options].some(option => option.value === profile.job)) {
+            jobInput.add(new Option(profile.job, profile.job));
+        }
+        jobInput.value = profile?.job || '';
+
+        const [{ count: logs }, { count: portfolios }] = await Promise.all([
+            client.from('logs').select('id', { count: 'exact', head: true }),
+            client.from('portfolios').select('id', { count: 'exact', head: true }),
+        ]);
+        document.getElementById('logCount').textContent = logs || 0;
+        document.getElementById('portfolioCount').textContent = portfolios || 0;
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const message = document.getElementById('profileMessage');
+        message.textContent = '저장 중...';
+        const name = document.getElementById('nameInput').value.trim();
+        const year = document.getElementById('yearInput').value;
+        const job = document.getElementById('jobInput').value;
+        const file = document.getElementById('avatarInput').files[0];
+        let avatarUrl;
+
+        if (file) {
+            try {
+                await saveLocalAvatar(currentUser.id, file);
+            } catch (uploadError) {
+                console.error('프로필 사진 로컬 저장 실패:', uploadError);
+                message.textContent = '프로필 사진을 저장하지 못했어요.';
+                return;
+            }
+        }
+
+        const updates = { user_id: currentUser.id, year, job };
+        const { error: profileError } = await client.from('profiles').upsert(updates);
+        if (profileError) {
+            message.textContent = '프로필 정보를 저장하지 못했어요.';
+            return;
+        }
+        const { error: userError } = await client.auth.updateUser({
+            data: { name, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) },
+        });
+        if (userError) {
+            message.textContent = '프로필 정보를 저장하지 못했어요.';
+            return;
+        }
+        message.textContent = '저장했어요.';
+        await loadMypage();
+    });
+
+    document.getElementById('logoutButton').addEventListener('click', async () => {
+        await client.auth.signOut();
+        window.location.href = 'index.html?home=1';
+    });
+
+    loadMypage().catch(() => { window.location.href = 'login.html'; });
+</script>
+</body>
+</html>

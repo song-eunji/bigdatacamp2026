@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>회원가입</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+<main class="auth-page">
+    <h1>회원가입</h1>
+    <p class="auth-subtitle">간단한 회원가입을 통해 다양한 기능을 이용해 보세요!</p>
+    <section>
+        <form id="signupForm" class="auth-form">
+            <input id="signupName" type="text" placeholder="이름" autocomplete="name" required>
+            <input id="signupEmail" type="email" placeholder="이메일" autocomplete="email" required>
+            <input id="signupPassword" type="password" placeholder="비밀번호" autocomplete="new-password" required>
+            <button type="submit">회원가입</button>
+            <div id="signupMessage" class="auth-error" role="alert" hidden></div>
+        </form>
+        <div class="oauth-buttons">
+            <button id="googleSignup" type="button">Google로 시작하기</button>
+            <button id="kakaoSignup" type="button">Kakao로 시작하기</button>
+            <button id="naverSignup" type="button">Naver로 시작하기</button>
+        </div>
+        <div class="auth-note"><a href="login.html">로그인하러 가기</a> · <a href="index.html">홈으로 돌아가기</a></div>
+    </section>
+</main>
+<script>
+    const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
+    const authClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const message = document.getElementById('signupMessage');
+
+    document.getElementById('signupForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        message.hidden = true;
+        const name = document.getElementById('signupName').value.trim();
+        const { data, error } = await authClient.auth.signUp({
+            email: document.getElementById('signupEmail').value.trim(),
+            password: document.getElementById('signupPassword').value,
+            options: { data: { name } },
+        });
+        if (error) {
+            message.textContent = error.message;
+            message.hidden = false;
+            return;
+        }
+
+        if (data.user) {
+            const { error: profileError } = await authClient.from('profiles').upsert({
+                user_id: data.user.id,
+                name,
+            });
+            if (profileError) console.error('프로필 저장 실패:', profileError);
+        }
+        window.location.href = 'index.html';
+    });
+
+    document.getElementById('googleSignup').addEventListener('click', async () => {
+        await authClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: `${window.location.origin}/index.html` },
+        });
+    });
+
+    document.getElementById('kakaoSignup').addEventListener('click', () => {
+        // TODO: Kakao OAuth 연결
+    });
+
+    document.getElementById('naverSignup').addEventListener('click', () => {
+        // TODO: Naver OAuth 연결
+    });
+</script>
+</body>
+</html>
