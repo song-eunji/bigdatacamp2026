@@ -86,7 +86,7 @@
 
 <section>
     <h2>프로젝트</h2>
-    <select id="projectSelect"></select>
+    <div id="projectButtons" class="cat-btns"></div>
     <div class="row">
         <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
         <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
@@ -255,7 +255,7 @@
     const filterBarEl = document.getElementById('filterBar');
     const logInputEl = document.getElementById('logInput');
     const logDateInputEl = document.getElementById('logDateInput');
-    const projectSelectEl = document.getElementById('projectSelect');
+    const projectButtonsEl = document.getElementById('projectButtons');
     const timelineSearchEl = document.getElementById('timelineSearch');
 
     let currentUser = null;
@@ -382,22 +382,24 @@
     }
 
     function renderProjectSelect() {
-        projectSelectEl.innerHTML = '';
+        projectButtonsEl.innerHTML = '';
         projectsCache.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name;
-            if (p.id === currentProjectId) opt.selected = true;
-            projectSelectEl.appendChild(opt);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cat-btn' + (p.id === currentProjectId ? ' active' : '');
+            btn.textContent = p.name;
+            btn.addEventListener('click', async () => {
+                if (p.id === currentProjectId) return;
+                currentProjectId = p.id;
+                localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+                selectedDate = null;
+                renderProjectSelect();
+                await renderAll();
+                if (window.refreshUploads) window.refreshUploads();
+            });
+            projectButtonsEl.appendChild(btn);
         });
     }
-
-    projectSelectEl.addEventListener('change', async () => {
-        currentProjectId = projectSelectEl.value;
-        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
-        selectedDate = null;
-        await renderAll();
-    });
 
     // ── GitHub 커밋 자동 가져오기 (Tool 호출) ─────────────────────────────
     const GITHUB_REPO_KEY = 'githubRepo';
@@ -499,22 +501,72 @@
         return [...BASE_CATEGORIES, ...loadCustomCategories()];
     }
 
+    function selectCategory(cat) {
+        selectedCategory = cat;
+        logInputEl.placeholder = getPlaceholder(cat);
+        renderCategoryButtons();
+    }
+
+    function buildCategoryButton(cat, isCustom) {
+        const wrap = document.createElement('span');
+        wrap.style.cssText = 'display:inline-flex; align-items:center;';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cat-btn' + (cat === selectedCategory ? ' active' : '');
+        btn.textContent = cat;
+        btn.addEventListener('click', () => selectCategory(cat));
+        wrap.appendChild(btn);
+
+        if (isCustom) {
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'cat-icon-btn';
+            editBtn.textContent = '✎';
+            editBtn.title = '분류 이름 수정';
+            editBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const newName = window.prompt('분류 이름 수정', cat);
+                const trimmed = (newName || '').trim();
+                if (!trimmed || trimmed === cat) return;
+
+                const customs = loadCustomCategories().map(c => c === cat ? trimmed : c);
+                saveCustomCategories(customs);
+                if (selectedCategory === cat) {
+                    selectedCategory = trimmed;
+                    logInputEl.placeholder = getPlaceholder(trimmed);
+                }
+                await sb.from('logs').update({ category: trimmed }).eq('category', cat).eq('user_id', currentUser.id);
+                renderCategoryButtons();
+                await renderAll();
+            });
+            wrap.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'cat-icon-btn';
+            delBtn.textContent = '×';
+            delBtn.title = '분류 삭제';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!confirm(`"${cat}" 분류를 목록에서 삭제할까요? (이미 저장된 기록은 그대로 남아요)`)) return;
+                const customs = loadCustomCategories().filter(c => c !== cat);
+                saveCustomCategories(customs);
+                if (selectedCategory === cat) selectCategory(BASE_CATEGORIES[0]);
+                renderCategoryButtons();
+            });
+            wrap.appendChild(delBtn);
+        }
+
+        return wrap;
+    }
+
     function renderCategoryButtons() {
         const container = document.getElementById('categoryButtons');
         container.innerHTML = '';
 
-        allCategories().forEach(cat => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'cat-btn' + (cat === selectedCategory ? ' active' : '');
-            btn.textContent = cat;
-            btn.addEventListener('click', () => {
-                selectedCategory = cat;
-                logInputEl.placeholder = getPlaceholder(cat);
-                renderCategoryButtons();
-            });
-            container.appendChild(btn);
-        });
+        BASE_CATEGORIES.forEach(cat => container.appendChild(buildCategoryButton(cat, false)));
+        loadCustomCategories().forEach(cat => container.appendChild(buildCategoryButton(cat, true)));
 
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
