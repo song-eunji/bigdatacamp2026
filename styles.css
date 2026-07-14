@@ -167,7 +167,6 @@ ul#timeline, ul#portfolioList { list-style: none; padding: 0; margin: 0; }
 .reminder-fields input { margin-top: 4px; }
 .reminder-preview { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--primary-soft); color: var(--text-soft); font-size: 12px; }
 .reminder-preview div + div { margin-top: 4px; }
-#downloadReminderIcsBtn { margin-left: 6px; }
 
 @media (prefers-color-scheme: dark) {
     :root {

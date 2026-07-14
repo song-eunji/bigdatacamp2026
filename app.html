@@ -134,7 +134,6 @@
         <label>알림 시간<input type="time" id="reminderTime" value="12:00"></label>
     </div>
     <button id="addGoogleReminderBtn">Google Calendar에 추가</button>
-    <button class="secondary" id="downloadReminderIcsBtn">날짜별 알림 파일 다운로드</button>
     <div id="reminderStatus" class="hint" role="status"></div>
     <div id="reminderPreview" class="reminder-preview"></div>
 </section>
@@ -331,24 +330,6 @@
         return `https://calendar.google.com/calendar/render?${params}`;
     }
 
-    // iCalendar 텍스트에서 특수문자를 안전하게 처리하는 함수
-    function escapeIcsText(text) {
-        return text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-    }
-
-    // 날짜별 리마인더를 Google Calendar 가져오기용 파일로 만드는 함수
-    function createReminderIcs(startDate, time, dayCount) {
-        const messages = createReminderMessages(startDate, dayCount);
-        const events = messages.map(({ date, message }, index) => {
-            const start = new Date(date);
-            const [hour, minute] = time.split(':').map(Number);
-            start.setHours(hour, minute, 0, 0);
-            const end = new Date(start.getTime() + 30 * 60000);
-            return `BEGIN:VEVENT\nUID:reminder-${Date.now()}-${index}@bigdatacamp2026\nDTSTART:${formatGoogleCalendarDate(start)}\nDTEND:${formatGoogleCalendarDate(end)}\nSUMMARY:${escapeIcsText('프로젝트 활동 기록하기')}\nDESCRIPTION:${escapeIcsText(message)}\nBEGIN:VALARM\nTRIGGER:-PT10M\nACTION:DISPLAY\nDESCRIPTION:${escapeIcsText(message)}\nEND:VALARM\nEND:VEVENT`;
-        }).join('\n');
-        return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//bigdatacamp2026//Reminder//KO\n${events}\nEND:VCALENDAR`;
-    }
-
     // 리마인더 미리보기와 Google Calendar 추가 버튼을 초기화하는 함수
     function initGoogleReminder() {
         const startEl = document.getElementById('reminderStartDate');
@@ -373,12 +354,6 @@
             if (!startEl.value || !endEl.value || count < 1 || count > 365) return;
             window.open(createGoogleCalendarLink(startEl.value, timeEl.value, count), '_blank');
             statusEl.textContent = 'Google Calendar에서 저장 버튼을 누르면 휴대폰 알림이 시작됩니다.';
-        });
-        document.getElementById('downloadReminderIcsBtn').addEventListener('click', () => {
-            const count = getReminderDayCount(startEl.value, endEl.value);
-            if (!startEl.value || !endEl.value || count < 1 || count > 365) return;
-            downloadText('프로젝트_리마인더.ics', createReminderIcs(startEl.value, timeEl.value, count));
-            statusEl.textContent = '파일을 Google Calendar에서 가져오면 날짜별 알림이 등록됩니다.';
         });
         renderPreview();
     }
