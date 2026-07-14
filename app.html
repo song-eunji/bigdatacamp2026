@@ -46,7 +46,7 @@
 <div id="mainApp" style="display:none;">
 
 <div class="top-nav">
-    <span></span>
+    <div id="authActions" class="auth-actions"></div>
     <a href="portfolios.html">📁 포트폴리오 모아보기 →</a>
 </div>
 
@@ -165,6 +165,13 @@
 
 </div>
 
+<script>
+    if (new URLSearchParams(window.location.search).get('home') === '1') {
+        document.getElementById('onboardingScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+    }
+</script>
+<script src="auth-ui.js"></script>
 <script>
     // ── Supabase ─────────────────────────────
     const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
@@ -906,7 +913,7 @@ ${logText}`;
     async function init() {
         currentUser = await ensureAuth();
         profileCache = await fetchProfile();
-        if (profileCache && profileCache.job && profileCache.year) {
+        if ((profileCache && profileCache.job && profileCache.year) || new URLSearchParams(window.location.search).get('home') === '1') {
             await enterMainApp();
         }
     }

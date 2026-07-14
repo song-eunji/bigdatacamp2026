@@ -37,7 +37,7 @@ section {
 }
 section h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: var(--text); }
 
-input[type="password"], input[type="text"], input[type="date"], textarea, select {
+input[type="email"], input[type="password"], input[type="text"], input[type="date"], textarea, select {
     width: 100%;
     padding: 12px 14px;
     border: 1.5px solid var(--border);
@@ -87,6 +87,43 @@ button.link:hover { transform: none; box-shadow: none; }
 .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .top-nav a { font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 600; }
 .top-nav a:hover { text-decoration: underline; }
+.auth-actions { display: flex; align-items: center; gap: 8px; }
+.auth-actions a { background: var(--primary-soft); color: var(--primary-dark); padding: 6px 12px; border-radius: 999px; font-size: 12px; }
+.auth-actions a:hover { text-decoration: none; background: #E4DFFF; }
+.auth-profile { position: relative; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; overflow: visible; background: transparent; }
+.auth-profile img { display: block; width: 100%; height: 100%; border-radius: 50%; }
+.auth-profile svg { display: block; width: 100%; height: 100%; }
+.auth-profile::after { content: '마이페이지'; position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--text); color: var(--card); padding: 3px 7px; border-radius: 5px; font-size: 11px; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.auth-profile:hover::after { opacity: 1; }
+.auth-page { max-width: 460px; margin: 60px auto; }
+.auth-page h1 { margin-bottom: 8px; }
+.auth-page .auth-subtitle { color: var(--text-soft); font-size: 14px; margin: 0 0 20px; }
+.auth-form { display: flex; flex-direction: column; }
+.auth-form button { align-self: flex-start; }
+.auth-error { color: #E64848; font-size: 13px; margin-top: 8px; }
+.auth-note { color: var(--text-soft); font-size: 13px; margin-top: 14px; }
+.auth-note a { color: var(--primary); }
+.login-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 13px; }
+.login-footer a { color: var(--primary); text-decoration: none; }
+.login-footer a:hover { text-decoration: underline; }
+.login-help-links { display: flex; gap: 12px; }
+.oauth-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.mypage-profile { display: flex; align-items: center; gap: 14px; }
+.mypage-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--primary-soft); }
+.mypage-email { color: var(--text-soft); font-size: 13px; }
+.mypage-stat-row { display: flex; gap: 10px; }
+.mypage-stat-card { flex: 1; text-align: center; background: var(--primary-soft); border-radius: 12px; padding: 14px 8px; }
+.mypage-stat-card strong { display: block; color: var(--primary); font-size: 22px; }
+.mypage-stat-card span { color: var(--text-soft); font-size: 12px; }
+.mypage-form label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 5px; }
+.mypage-form input[type="file"] { width: 100%; font-size: 13px; margin-bottom: 8px; }
+.mypage-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mypage-message { color: var(--primary); font-size: 13px; margin-top: 8px; }
+.mypage-info-summary { display: grid; gap: 10px; margin-bottom: 20px; }
+.mypage-info-summary div { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.mypage-info-summary span { color: var(--text-soft); font-size: 13px; }
+.mypage-info-summary strong { font-size: 14px; text-align: right; }
+.mypage-edit-title { font-size: 14px; margin: 24px 0 8px; padding-top: 16px; border-top: 1px solid var(--border); }
 
 .streak-badge {
     display: inline-flex; align-items: center; gap: 6px;
