@@ -126,6 +126,19 @@
 </section>
 
 <section>
+    <h2>Google Calendar 리마인더</h2>
+    <div class="hint">기간을 설정하면 Google Calendar에 매일 알림을 추가할 수 있어요. Google 계정 로그인이나 OAuth는 필요하지 않습니다.</div>
+    <div class="row reminder-fields">
+        <label>시작일<input type="date" id="reminderStartDate"></label>
+        <label>종료일<input type="date" id="reminderEndDate"></label>
+        <label>알림 시간<input type="time" id="reminderTime" value="12:00"></label>
+    </div>
+    <button id="addGoogleReminderBtn">Google Calendar에 추가</button>
+    <div id="reminderStatus" class="hint" role="status"></div>
+    <div id="reminderPreview" class="reminder-preview"></div>
+</section>
+
+<section>
     <h2>타임라인</h2>
     <input type="text" id="timelineSearch" placeholder="🔍 기록 검색 (내용·분류)">
     <div id="filterBar" style="display:none; margin-bottom:8px;">
@@ -271,6 +284,78 @@
     // ── 유틸 ─────────────────────────────
     function todayStr() {
         return new Date().toISOString().slice(0, 10);
+    }
+
+    // Google Calendar 링크에 사용할 날짜·시간 형식으로 변환하는 함수
+    function formatGoogleCalendarDate(date) {
+        const pad = value => String(value).padStart(2, '0');
+        return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
+            `T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+    }
+
+    // 설정한 기간의 날짜 수를 계산하는 함수
+    function getReminderDayCount(startDate, endDate) {
+        const start = new Date(`${startDate}T00:00:00`);
+        const end = new Date(`${endDate}T00:00:00`);
+        return Math.floor((end - start) / 86400000) + 1;
+    }
+
+    // 날짜마다 다른 기록 유도 문구를 만드는 함수
+    function createReminderMessages(startDate, dayCount) {
+        const prompts = [
+            '오늘 한 일과 결과를 한 줄로 기록해 보세요.',
+            '오늘 새롭게 배운 점이나 시도한 방법을 남겨 보세요.',
+            '오늘 가장 어려웠던 문제와 해결 방법을 정리해 보세요.',
+            '오늘 팀에 기여한 일이나 협업 내용을 기록해 보세요.',
+            '오늘 작업에서 다음에 개선할 점을 한 가지 적어 보세요.'
+        ];
+        return Array.from({ length: dayCount }, (_, index) => {
+            const date = new Date(`${startDate}T00:00:00`);
+            date.setDate(date.getDate() + index);
+            return { date, message: prompts[index % prompts.length] };
+        });
+    }
+
+    // Google Calendar 일정 추가 링크를 생성하는 함수
+    function createGoogleCalendarLink(startDate, time, dayCount) {
+        const start = new Date(`${startDate}T${time}:00`);
+        const end = new Date(start.getTime() + 30 * 60000);
+        const params = new URLSearchParams({
+            action: 'TEMPLATE',
+            text: '프로젝트 활동 기록하기',
+            dates: `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`,
+            details: '오늘의 프로젝트 활동과 배운 점을 기록해 보세요.',
+            recur: `RRULE:FREQ=DAILY;COUNT=${dayCount}`
+        });
+        return `https://calendar.google.com/calendar/render?${params}`;
+    }
+
+    // 리마인더 미리보기와 Google Calendar 추가 버튼을 초기화하는 함수
+    function initGoogleReminder() {
+        const startEl = document.getElementById('reminderStartDate');
+        const endEl = document.getElementById('reminderEndDate');
+        const timeEl = document.getElementById('reminderTime');
+        const previewEl = document.getElementById('reminderPreview');
+        const statusEl = document.getElementById('reminderStatus');
+        startEl.value = todayStr();
+        endEl.value = todayStr();
+        const renderPreview = () => {
+            const count = getReminderDayCount(startEl.value, endEl.value);
+            if (!startEl.value || !endEl.value || count < 1 || count > 365) {
+                previewEl.textContent = '1~365일 범위로 설정해 주세요.';
+                return;
+            }
+            previewEl.innerHTML = createReminderMessages(startEl.value, count)
+                .slice(0, 5).map(item => `<div>${item.date.toLocaleDateString('ko-KR')} · ${item.message}</div>`).join('');
+        };
+        [startEl, endEl].forEach(el => el.addEventListener('change', renderPreview));
+        document.getElementById('addGoogleReminderBtn').addEventListener('click', () => {
+            const count = getReminderDayCount(startEl.value, endEl.value);
+            if (!startEl.value || !endEl.value || count < 1 || count > 365) return;
+            window.open(createGoogleCalendarLink(startEl.value, timeEl.value, count), '_blank');
+            statusEl.textContent = 'Google Calendar에서 저장 버튼을 누르면 휴대폰 알림이 시작됩니다.';
+        });
+        renderPreview();
     }
 
     function escapeHtml(str) {
@@ -968,6 +1053,7 @@ ${logText}`;
         document.getElementById('onbError').textContent = '초기화 중 오류가 발생했어요. 새로고침해보세요.';
         document.getElementById('onbError').style.display = 'block';
     });
+    initGoogleReminder();
 </script>
 
 <script>

@@ -86,7 +86,7 @@
 
 <section>
     <h2>프로젝트</h2>
-    <select id="projectSelect"></select>
+    <div id="projectButtons" class="cat-btns"></div>
     <div class="row">
         <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
         <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
@@ -123,6 +123,19 @@
     </div>
     <div id="calendarGrid"></div>
     <div class="catCounts" id="catCounts"></div>
+</section>
+
+<section>
+    <h2>Google Calendar 리마인더</h2>
+    <div class="hint">기간을 설정하면 Google Calendar에 매일 알림을 추가할 수 있어요. Google 계정 로그인이나 OAuth는 필요하지 않습니다.</div>
+    <div class="row reminder-fields">
+        <label>시작일<input type="date" id="reminderStartDate"></label>
+        <label>종료일<input type="date" id="reminderEndDate"></label>
+        <label>알림 시간<input type="time" id="reminderTime" value="12:00"></label>
+    </div>
+    <button id="addGoogleReminderBtn">Google Calendar에 추가</button>
+    <div id="reminderStatus" class="hint" role="status"></div>
+    <div id="reminderPreview" class="reminder-preview"></div>
 </section>
 
 <section>
@@ -255,7 +268,7 @@
     const filterBarEl = document.getElementById('filterBar');
     const logInputEl = document.getElementById('logInput');
     const logDateInputEl = document.getElementById('logDateInput');
-    const projectSelectEl = document.getElementById('projectSelect');
+    const projectButtonsEl = document.getElementById('projectButtons');
     const timelineSearchEl = document.getElementById('timelineSearch');
 
     let currentUser = null;
@@ -271,6 +284,78 @@
     // ── 유틸 ─────────────────────────────
     function todayStr() {
         return new Date().toISOString().slice(0, 10);
+    }
+
+    // Google Calendar 링크에 사용할 날짜·시간 형식으로 변환하는 함수
+    function formatGoogleCalendarDate(date) {
+        const pad = value => String(value).padStart(2, '0');
+        return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
+            `T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+    }
+
+    // 설정한 기간의 날짜 수를 계산하는 함수
+    function getReminderDayCount(startDate, endDate) {
+        const start = new Date(`${startDate}T00:00:00`);
+        const end = new Date(`${endDate}T00:00:00`);
+        return Math.floor((end - start) / 86400000) + 1;
+    }
+
+    // 날짜마다 다른 기록 유도 문구를 만드는 함수
+    function createReminderMessages(startDate, dayCount) {
+        const prompts = [
+            '오늘 한 일과 결과를 한 줄로 기록해 보세요.',
+            '오늘 새롭게 배운 점이나 시도한 방법을 남겨 보세요.',
+            '오늘 가장 어려웠던 문제와 해결 방법을 정리해 보세요.',
+            '오늘 팀에 기여한 일이나 협업 내용을 기록해 보세요.',
+            '오늘 작업에서 다음에 개선할 점을 한 가지 적어 보세요.'
+        ];
+        return Array.from({ length: dayCount }, (_, index) => {
+            const date = new Date(`${startDate}T00:00:00`);
+            date.setDate(date.getDate() + index);
+            return { date, message: prompts[index % prompts.length] };
+        });
+    }
+
+    // Google Calendar 일정 추가 링크를 생성하는 함수
+    function createGoogleCalendarLink(startDate, time, dayCount) {
+        const start = new Date(`${startDate}T${time}:00`);
+        const end = new Date(start.getTime() + 30 * 60000);
+        const params = new URLSearchParams({
+            action: 'TEMPLATE',
+            text: '프로젝트 활동 기록하기',
+            dates: `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`,
+            details: '오늘의 프로젝트 활동과 배운 점을 기록해 보세요.',
+            recur: `RRULE:FREQ=DAILY;COUNT=${dayCount}`
+        });
+        return `https://calendar.google.com/calendar/render?${params}`;
+    }
+
+    // 리마인더 미리보기와 Google Calendar 추가 버튼을 초기화하는 함수
+    function initGoogleReminder() {
+        const startEl = document.getElementById('reminderStartDate');
+        const endEl = document.getElementById('reminderEndDate');
+        const timeEl = document.getElementById('reminderTime');
+        const previewEl = document.getElementById('reminderPreview');
+        const statusEl = document.getElementById('reminderStatus');
+        startEl.value = todayStr();
+        endEl.value = todayStr();
+        const renderPreview = () => {
+            const count = getReminderDayCount(startEl.value, endEl.value);
+            if (!startEl.value || !endEl.value || count < 1 || count > 365) {
+                previewEl.textContent = '1~365일 범위로 설정해 주세요.';
+                return;
+            }
+            previewEl.innerHTML = createReminderMessages(startEl.value, count)
+                .slice(0, 5).map(item => `<div>${item.date.toLocaleDateString('ko-KR')} · ${item.message}</div>`).join('');
+        };
+        [startEl, endEl].forEach(el => el.addEventListener('change', renderPreview));
+        document.getElementById('addGoogleReminderBtn').addEventListener('click', () => {
+            const count = getReminderDayCount(startEl.value, endEl.value);
+            if (!startEl.value || !endEl.value || count < 1 || count > 365) return;
+            window.open(createGoogleCalendarLink(startEl.value, timeEl.value, count), '_blank');
+            statusEl.textContent = 'Google Calendar에서 저장 버튼을 누르면 휴대폰 알림이 시작됩니다.';
+        });
+        renderPreview();
     }
 
     function escapeHtml(str) {
@@ -382,22 +467,24 @@
     }
 
     function renderProjectSelect() {
-        projectSelectEl.innerHTML = '';
+        projectButtonsEl.innerHTML = '';
         projectsCache.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name;
-            if (p.id === currentProjectId) opt.selected = true;
-            projectSelectEl.appendChild(opt);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cat-btn' + (p.id === currentProjectId ? ' active' : '');
+            btn.textContent = p.name;
+            btn.addEventListener('click', async () => {
+                if (p.id === currentProjectId) return;
+                currentProjectId = p.id;
+                localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+                selectedDate = null;
+                renderProjectSelect();
+                await renderAll();
+                if (window.refreshUploads) window.refreshUploads();
+            });
+            projectButtonsEl.appendChild(btn);
         });
     }
-
-    projectSelectEl.addEventListener('change', async () => {
-        currentProjectId = projectSelectEl.value;
-        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
-        selectedDate = null;
-        await renderAll();
-    });
 
     // ── GitHub 커밋 자동 가져오기 (Tool 호출) ─────────────────────────────
     const GITHUB_REPO_KEY = 'githubRepo';
@@ -499,22 +586,72 @@
         return [...BASE_CATEGORIES, ...loadCustomCategories()];
     }
 
+    function selectCategory(cat) {
+        selectedCategory = cat;
+        logInputEl.placeholder = getPlaceholder(cat);
+        renderCategoryButtons();
+    }
+
+    function buildCategoryButton(cat, isCustom) {
+        const wrap = document.createElement('span');
+        wrap.style.cssText = 'display:inline-flex; align-items:center;';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cat-btn' + (cat === selectedCategory ? ' active' : '');
+        btn.textContent = cat;
+        btn.addEventListener('click', () => selectCategory(cat));
+        wrap.appendChild(btn);
+
+        if (isCustom) {
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'cat-icon-btn';
+            editBtn.textContent = '✎';
+            editBtn.title = '분류 이름 수정';
+            editBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const newName = window.prompt('분류 이름 수정', cat);
+                const trimmed = (newName || '').trim();
+                if (!trimmed || trimmed === cat) return;
+
+                const customs = loadCustomCategories().map(c => c === cat ? trimmed : c);
+                saveCustomCategories(customs);
+                if (selectedCategory === cat) {
+                    selectedCategory = trimmed;
+                    logInputEl.placeholder = getPlaceholder(trimmed);
+                }
+                await sb.from('logs').update({ category: trimmed }).eq('category', cat).eq('user_id', currentUser.id);
+                renderCategoryButtons();
+                await renderAll();
+            });
+            wrap.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'cat-icon-btn';
+            delBtn.textContent = '×';
+            delBtn.title = '분류 삭제';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!confirm(`"${cat}" 분류를 목록에서 삭제할까요? (이미 저장된 기록은 그대로 남아요)`)) return;
+                const customs = loadCustomCategories().filter(c => c !== cat);
+                saveCustomCategories(customs);
+                if (selectedCategory === cat) selectCategory(BASE_CATEGORIES[0]);
+                renderCategoryButtons();
+            });
+            wrap.appendChild(delBtn);
+        }
+
+        return wrap;
+    }
+
     function renderCategoryButtons() {
         const container = document.getElementById('categoryButtons');
         container.innerHTML = '';
 
-        allCategories().forEach(cat => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'cat-btn' + (cat === selectedCategory ? ' active' : '');
-            btn.textContent = cat;
-            btn.addEventListener('click', () => {
-                selectedCategory = cat;
-                logInputEl.placeholder = getPlaceholder(cat);
-                renderCategoryButtons();
-            });
-            container.appendChild(btn);
-        });
+        BASE_CATEGORIES.forEach(cat => container.appendChild(buildCategoryButton(cat, false)));
+        loadCustomCategories().forEach(cat => container.appendChild(buildCategoryButton(cat, true)));
 
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
@@ -916,6 +1053,7 @@ ${logText}`;
         document.getElementById('onbError').textContent = '초기화 중 오류가 발생했어요. 새로고침해보세요.';
         document.getElementById('onbError').style.display = 'block';
     });
+    initGoogleReminder();
 </script>
 
 <script>
