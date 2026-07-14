@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포트폴리오 모아보기</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<div class="top-nav">
+    <a href="app.html">← 기록으로 돌아가기</a>
+    <span></span>
+</div>
+
+<h1>📁 포트폴리오 모아보기</h1>
+<div class="sub">지금까지 저장한 포트폴리오를 프로젝트별로 모아봤어요. "공개"로 전환하면 링크로 공유할 수 있어요.</div>
+
+<div class="stat-row">
+    <div class="stat-card"><div class="num" id="statProjects">0</div><div class="label">프로젝트</div></div>
+    <div class="stat-card"><div class="num" id="statPortfolios">0</div><div class="label">저장된 포트폴리오</div></div>
+    <div class="stat-card"><div class="num" id="statLogs">0</div><div class="label">누적 기록</div></div>
+</div>
+
+<section>
+    <h2>필터</h2>
+    <div class="row">
+        <select id="projectFilter"></select>
+        <input type="text" id="portfolioSearch" placeholder="🔍 내용 검색">
+    </div>
+</section>
+
+<section>
+    <h2>포트폴리오</h2>
+    <div id="portfolioEmpty" class="empty">아직 저장된 포트폴리오가 없어요. 기록 페이지에서 초안을 만들고 저장해보세요.</div>
+    <ul id="portfolioList"></ul>
+</section>
+
+<script>
+    const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const DB_NAME = 'portfolioResults';
+    const STORE_NAME = 'files';
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.innerText = str;
+        return div.innerHTML;
+    }
+
+    function downloadText(filename, text) {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function openDb() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    function allFiles(db) {
+        return new Promise((resolve, reject) => {
+            const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function ensureAuth() {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) return session.user;
+        const { data, error } = await sb.auth.signInAnonymously();
+        if (error) throw error;
+        return data.user;
+    }
+
+    let filterProjectId = 'all';
+    let searchTerm = '';
+    let uploadedItems = [];
+    let projectsCache = [];
+    let portfoliosCache = [];
+
+    async function fetchStats() {
+        const [{ count: projectCount }, { count: portfolioCount }, { count: logCount }] = await Promise.all([
+            sb.from('projects').select('id', { count: 'exact', head: true }),
+            sb.from('portfolios').select('id', { count: 'exact', head: true }),
+            sb.from('logs').select('id', { count: 'exact', head: true }),
+        ]);
+        document.getElementById('statProjects').textContent = projectCount || 0;
+        document.getElementById('statPortfolios').textContent = portfolioCount || 0;
+        document.getElementById('statLogs').textContent = logCount || 0;
+    }
+
+    function renderProjectFilter() {
+        const sel = document.getElementById('projectFilter');
+        sel.innerHTML = '<option value="all">전체 프로젝트</option>' +
+            projectsCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+        sel.value = filterProjectId;
+    }
+
+    document.getElementById('projectFilter').addEventListener('change', (e) => {
+        filterProjectId = e.target.value;
+        renderGallery();
+    });
+
+    document.getElementById('portfolioSearch').addEventListener('input', (e) => {
+        searchTerm = e.target.value.trim().toLowerCase();
+        renderGallery();
+    });
+
+    function renderGallery() {
+        const all = portfoliosCache;
+        let list = filterProjectId === 'all' ? all : all.filter(p => String(p.project_id) === String(filterProjectId));
+        if (searchTerm) {
+            list = list.filter(p => p.content.toLowerCase().includes(searchTerm) || (p.project_name || '').toLowerCase().includes(searchTerm));
+        }
+
+        const galleryEl = document.getElementById('portfolioList');
+        const emptyEl = document.getElementById('portfolioEmpty');
+        galleryEl.innerHTML = '';
+        emptyEl.style.display = list.length === 0 ? 'block' : 'none';
+        emptyEl.textContent = all.length === 0
+            ? '아직 저장된 포트폴리오가 없어요. 기록 페이지에서 초안을 만들고 저장해보세요.'
+            : '조건에 맞는 포트폴리오가 없어요.';
+
+        list.slice().reverse().forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'log-item';
+            const dateStr = (p.created_at || '').slice(0, 10);
+            const flatPreview = p.content.replace(/\s+/g, ' ').trim();
+            const preview = flatPreview.length > 40 ? flatPreview.slice(0, 40) + '…' : flatPreview;
+
+            const related = uploadedItems.filter(f => f.projectId === p.project_id);
+            const relatedHtml = related.length === 0 ? '' : `
+                <div class="related-uploads">
+                    <div class="ru-title">📎 관련 결과물</div>
+                    <ul>
+                        ${related.map(f => `<li>${f.kind === 'link' ? `🔗 ${escapeHtml(f.name)}` : `📄 ${escapeHtml(f.name)}`} <button class="secondary" data-open-id="${f.id}">열기</button></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            const shareUrl = `${location.origin}${location.pathname.replace('portfolios.html', '')}share.html?id=${p.id}`;
+
+            li.innerHTML = `
+                <div class="log-summary">
+                    <span class="log-date">${dateStr}<span class="tag">${escapeHtml(p.project_name || '프로젝트')}</span></span>
+                    <span class="log-preview">${escapeHtml(preview)}</span>
+                    <span class="chevron">▸</span>
+                </div>
+                <div class="log-detail" style="display:block;">
+                    <textarea style="min-height:180px;">${escapeHtml(p.content)}</textarea>
+                    <button class="secondary" data-action="copy">복사</button>
+                    <button class="secondary" data-action="download">⬇ 다운로드</button>
+                    <button class="secondary" data-action="save">저장</button>
+                    <button class="secondary" data-action="toggle-public">${p.is_public ? '🔒 비공개로 전환' : '🌐 공개로 전환'}</button>
+                    ${p.is_public ? '<button class="secondary" data-action="copy-link">🔗 공유 링크 복사</button>' : ''}
+                    <button class="secondary" data-action="delete">삭제</button>
+                    <span class="mini-confirm" data-role="copy-confirm">복사했어요 ✓</span>
+                    ${relatedHtml}
+                </div>
+            `;
+
+            const textarea = li.querySelector('textarea');
+            li.querySelector('.log-summary').addEventListener('click', () => li.classList.toggle('open'));
+
+            li.querySelector('[data-action="copy"]').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try {
+                    await navigator.clipboard.writeText(textarea.value);
+                    showMiniConfirm(li);
+                } catch (err) {
+                    alert('복사에 실패했어요. 직접 선택해서 복사해주세요.');
+                }
+            });
+            li.querySelector('[data-action="download"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadText(`${p.project_name || '포트폴리오'}_${dateStr}.txt`, textarea.value);
+            });
+            li.querySelector('[data-action="save"]').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const newContent = textarea.value.trim();
+                if (!newContent) return;
+                await sb.from('portfolios').update({ content: newContent, updated_at: new Date().toISOString() }).eq('id', p.id);
+                await loadPortfolios();
+                renderGallery();
+            });
+            li.querySelector('[data-action="toggle-public"]').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await sb.from('portfolios').update({ is_public: !p.is_public }).eq('id', p.id);
+                await loadPortfolios();
+                renderGallery();
+            });
+            const copyLinkBtn = li.querySelector('[data-action="copy-link"]');
+            if (copyLinkBtn) {
+                copyLinkBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        showMiniConfirm(li);
+                    } catch (err) {
+                        alert(shareUrl);
+                    }
+                });
+            }
+            li.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await sb.from('portfolios').delete().eq('id', p.id);
+                await loadPortfolios();
+                renderGallery();
+                fetchStats();
+            });
+
+            li.querySelectorAll('[data-open-id]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const item = uploadedItems.find(f => String(f.id) === btn.dataset.openId);
+                    if (!item) return;
+                    if (item.kind === 'link') {
+                        if (/^https?:\/\//i.test(item.url)) window.open(item.url, '_blank', 'noopener');
+                        else alert(item.url);
+                    } else {
+                        window.open(URL.createObjectURL(item.file), '_blank', 'noopener');
+                    }
+                });
+            });
+
+            galleryEl.appendChild(li);
+        });
+    }
+
+    function showMiniConfirm(li) {
+        const confirmEl = li.querySelector('[data-role="copy-confirm"]');
+        confirmEl.style.display = 'inline';
+        setTimeout(() => confirmEl.style.display = 'none', 1500);
+    }
+
+    async function loadPortfolios() {
+        const { data, error } = await sb.from('portfolios').select('*').order('created_at', { ascending: true });
+        portfoliosCache = error ? [] : data;
+    }
+
+    async function init() {
+        await ensureAuth();
+
+        const [{ data: projects }] = await Promise.all([
+            sb.from('projects').select('*').order('created_at', { ascending: true }),
+        ]);
+        projectsCache = projects || [];
+        renderProjectFilter();
+
+        await loadPortfolios();
+        await fetchStats();
+
+        try {
+            const db = await openDb();
+            uploadedItems = await allFiles(db);
+        } catch (e) {
+            uploadedItems = [];
+        }
+
+        renderGallery();
+    }
+
+    init().catch(err => {
+        console.error(err);
+        document.getElementById('portfolioEmpty').textContent = '불러오는 중 오류가 발생했어요. 새로고침해보세요.';
+        document.getElementById('portfolioEmpty').style.display = 'block';
+    });
+</script>
+</body>
+</html>
