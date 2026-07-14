@@ -4,111 +4,60 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>활동 기록 → 포트폴리오 생성기</title>
-<style>
-    * { box-sizing: border-box; }
-    body {
-        font-family: -apple-system, "Malgun Gothic", Arial, sans-serif;
-        max-width: 640px;
-        margin: 40px auto;
-        padding: 0 16px;
-        color: #222;
-        line-height: 1.5;
-    }
-    h1 { font-size: 22px; margin-bottom: 4px; }
-    .sub { color: #777; font-size: 14px; margin-bottom: 24px; }
-    section {
-        border: 1px solid #e3e3e3;
-        border-radius: 10px;
-        padding: 16px 18px;
-        margin-bottom: 16px;
-    }
-    section h2 { font-size: 15px; margin: 0 0 10px; color: #444; }
-    input[type="password"], input[type="text"], textarea, select {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        font-size: 14px;
-        font-family: inherit;
-        margin-bottom: 8px;
-    }
-    textarea { resize: vertical; min-height: 70px; }
-    .row { display: flex; gap: 8px; }
-    .row > * { flex: 1; margin-bottom: 0; }
-    button {
-        padding: 10px 16px;
-        font-size: 14px;
-        border: none;
-        border-radius: 6px;
-        background: #2f6feb;
-        color: #fff;
-        cursor: pointer;
-        margin-top: 4px;
-    }
-    button:disabled { background: #b9c6dd; cursor: not-allowed; }
-    button.secondary { background: #eee; color: #333; padding: 4px 10px; margin: 0; font-size: 12px; }
-    button.link { background: none; color: #2f6feb; padding: 0; margin: 0; font-size: 13px; text-decoration: underline; }
-    .hint { font-size: 12px; color: #888; margin-top: 2px; margin-bottom: 8px; }
-    .empty { color: #999; font-size: 14px; padding: 8px 0; }
-
-    /* 타임라인 (토글) */
-    ul#timeline { list-style: none; padding: 0; margin: 0; }
-    .log-item { border-bottom: 1px dashed #eee; }
-    .log-item:last-child { border-bottom: none; }
-    .log-summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; cursor: pointer; }
-    .log-date { font-weight: bold; font-size: 13px; color: #2f6feb; white-space: nowrap; }
-    .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #eef2ff; color: #3b4fbf; margin-left: 4px; white-space: nowrap; }
-    .log-preview { flex: 1; font-size: 13px; color: #777; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chevron { font-size: 11px; color: #aaa; transition: transform 0.15s; flex-shrink: 0; }
-    .log-item.open .chevron { transform: rotate(90deg); }
-    .log-detail { display: none; padding: 0 0 10px 26px; }
-    .log-item.open .log-detail { display: block; }
-    .log-text { font-size: 14px; white-space: pre-wrap; margin-bottom: 6px; }
-
-    #result { white-space: pre-wrap; font-size: 14px; background: #fafafa; border-radius: 6px; padding: 12px; margin-top: 10px; display: none; }
-    #error { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
-    #loading { font-size: 13px; color: #888; margin-top: 8px; display: none; }
-
-    /* 프로필 */
-    #profileSummary { font-size: 13px; color: #444; }
-    #profileForm { display: none; }
-    #profileForm.open { display: block; }
-    .banner {
-        font-size: 12px; background: #fff8e6; border: 1px solid #ffe4a3;
-        border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
-    }
-
-    /* 캘린더 */
-    #calendarHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #555; }
-    #calendarGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-    .cal-weekday { text-align: center; font-size: 11px; color: #999; padding: 4px 0; }
-    .cal-day {
-        text-align: center; font-size: 13px; padding: 8px 0; border-radius: 6px;
-        cursor: pointer; position: relative; color: #333;
-    }
-    .cal-day.empty { cursor: default; }
-    .cal-day.has-log { background: #eef2ff; font-weight: bold; color: #2f6feb; }
-    .cal-day.selected { background: #2f6feb; color: #fff; }
-    .cal-day.today { border: 1px solid #2f6feb; }
-    .catCounts { font-size: 12px; color: #777; margin-top: 8px; }
-</style>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
-<h1>활동 기록 → 포트폴리오 생성기</h1>
+<!-- ── 온보딩 게이트 ───────────────────────────── -->
+<div id="onboardingScreen">
+    <h1>📓 활동 기록 → 포트폴리오 생성기</h1>
+    <section>
+        <h2>시작하기 전에</h2>
+        <div class="hint">학년/상태와 희망 직무를 알려주시면, 기록 예시와 포트폴리오 방향성 제안이 맞춤으로 바뀌어요.</div>
+        <select id="onbJobSelect">
+            <option value="">희망 직무 선택</option>
+            <option value="백엔드 개발자">백엔드 개발자</option>
+            <option value="프론트엔드 개발자">프론트엔드 개발자</option>
+            <option value="데이터 분석가/사이언티스트">데이터 분석가</option>
+            <option value="PM/기획자">PM/기획자</option>
+            <option value="디자이너">디자이너</option>
+            <option value="마케터">마케터</option>
+            <option value="기타">기타(직접 입력)</option>
+        </select>
+        <input type="text" id="onbJobCustom" placeholder="희망 직무 직접 입력" style="display:none;">
+        <select id="onbYearSelect">
+            <option value="">학년/상태 선택</option>
+            <option value="1학년">1학년</option>
+            <option value="2학년">2학년</option>
+            <option value="3학년">3학년</option>
+            <option value="4학년">4학년</option>
+            <option value="휴학중">휴학중</option>
+            <option value="취업준비생">취업준비생</option>
+            <option value="직장인">직장인</option>
+            <option value="기타">기타</option>
+        </select>
+        <button id="onbStartBtn">시작하기</button>
+        <div id="onbError" style="color:#E64848; font-size:13px; display:none; margin-top:6px;"></div>
+    </section>
+</div>
+
+<!-- ── 메인 앱 ───────────────────────────── -->
+<div id="mainApp" style="display:none;">
+
+<div class="top-nav">
+    <span></span>
+    <a href="portfolios.html">📁 포트폴리오 모아보기 →</a>
+</div>
+
+<h1>📓 활동 기록 → 포트폴리오 생성기</h1>
 <div class="sub">매일 3줄만 남기면, 쌓인 기록으로 성장 스토리 초안을 만들어드려요.</div>
+<div id="streakBadge" class="streak-badge" style="display:none;"></div>
 
 <section>
-    <h2>OpenAI API 키</h2>
-    <input type="password" id="apiKey" placeholder="sk-...">
-    <div class="hint">이 브라우저에만 저장됩니다(로컬 테스트용). 실제 배포 시에는 서버 함수로 옮겨서 키를 감춰야 해요.</div>
-</section>
-
-<section>
-    <h2>내 프로필 (선택)</h2>
-    <div id="profileSummary"></div>
-    <div id="profileForm">
-        <div class="banner">희망 직무·학년을 설정하면 포트폴리오 초안에 "방향성 제안"이 추가돼요. 입력 안 해도 기본 초안은 그대로 생성됩니다.</div>
+    <h2>내 정보</h2>
+    <div id="profileBar"></div>
+    <div id="profileEditForm">
         <select id="jobSelect">
             <option value="">희망 직무 선택</option>
             <option value="백엔드 개발자">백엔드 개발자</option>
@@ -131,7 +80,7 @@
             <option value="직장인">직장인</option>
             <option value="기타">기타</option>
         </select>
-        <button id="saveProfileBtn">프로필 저장</button>
+        <button id="saveProfileBtn">저장</button>
     </div>
 </section>
 
@@ -142,34 +91,43 @@
         <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
         <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
     </div>
-    <div class="hint">프로젝트별로 기록·캘린더·포트폴리오가 따로 관리돼요.</div>
+    <div class="hint">프로젝트별로 기록·캘린더·포트폴리오가 따로 관리돼요. 이제 클라우드(Supabase)에 저장돼서 같은 브라우저면 언제든 다시 접속해도 유지돼요.</div>
 </section>
 
 <section>
-    <h2>오늘 기록 (3줄 정도)</h2>
-    <select id="categorySelect">
-        <option value="개발">개발</option>
-        <option value="기획/문서">기획/문서</option>
-        <option value="협업/회의">협업/회의</option>
-        <option value="학습">학습</option>
-        <option value="문제해결">문제해결</option>
-        <option value="리더십">리더십</option>
-        <option value="기타">기타</option>
-    </select>
+    <h2>기록 추가</h2>
+    <input type="date" id="logDateInput">
+    <div id="categoryButtons" class="cat-btns"></div>
     <textarea id="logInput"></textarea>
     <button id="saveBtn">저장</button>
-    <div class="hint">날짜는 자동으로 오늘 날짜로 기록돼요. 분류를 바꾸면 예시 문구도 바뀝니다.</div>
+    <div class="hint">지난 날짜를 골라서 그날 기록도 추가할 수 있어요 (캘린더에서 날짜를 클릭해도 자동으로 채워져요). 분류를 바꾸면 예시 문구도 바뀌고, "+ 추가"로 나만의 분류를 만들 수 있어요.</div>
+</section>
+
+<section>
+    <h2>🤖 GitHub 커밋 자동 가져오기</h2>
+    <div class="hint">저장소의 최근 커밋을 불러와서 원클릭으로 기록에 추가할 수 있어요. (공개 저장소만 지원)</div>
+    <div class="row">
+        <input type="text" id="githubRepoInput" placeholder="owner/repo (예: song-eunji/bigdatacamp2026)">
+        <button id="fetchCommitsBtn" style="flex: 0 0 auto;">불러오기</button>
+    </div>
+    <div id="githubError" style="color:#E64848; font-size:13px; display:none; margin-top:6px;"></div>
+    <ul id="commitList" style="list-style:none; padding:0; margin:10px 0 0;"></ul>
 </section>
 
 <section>
     <h2>캘린더</h2>
-    <div id="calendarHeader"></div>
+    <div id="calendarHeader">
+        <button class="secondary" id="calPrevBtn">◀</button>
+        <span id="calLabel"></span>
+        <button class="secondary" id="calNextBtn">▶</button>
+    </div>
     <div id="calendarGrid"></div>
     <div class="catCounts" id="catCounts"></div>
 </section>
 
 <section>
     <h2>타임라인</h2>
+    <input type="text" id="timelineSearch" placeholder="🔍 기록 검색 (내용·분류)">
     <div id="filterBar" style="display:none; margin-bottom:8px;">
         <button class="secondary" id="clearFilterBtn">전체보기</button>
     </div>
@@ -182,45 +140,133 @@
     <button id="genBtn" disabled>지금까지 기록으로 초안 만들기</button>
     <div id="loading">생성 중...</div>
     <div id="error"></div>
-    <div id="result"></div>
+    <div id="resultBox">
+        <textarea id="resultEdit" style="min-height:200px;"></textarea>
+        <button id="savePortfolioBtn">이 내용으로 저장</button>
+        <button class="secondary" id="downloadPortfolioBtn">⬇ 다운로드</button>
+        <span id="saveConfirm">저장했어요 ✓ <a href="portfolios.html">모아보기에서 확인 →</a></span>
+    </div>
+
+    <hr style="border:none; border-top:1px solid var(--border); margin:18px 0;">
+
+    <h2 id="uploadTitle" style="margin-top:0;">결과물 업로드</h2>
+    <div class="hint">포트폴리오와 관련된 파일·링크를 같이 남겨두면 모아보기 페이지에서 함께 볼 수 있어요.</div>
+    <label for="resultFiles">결과물 파일 선택</label>
+    <input type="file" id="resultFiles" multiple>
+    <div class="hint">파일은 이 브라우저에만 저장됩니다. 파일당 최대 10MB까지 업로드할 수 있어요.</div>
+    <div class="row">
+        <input type="text" id="resultLinkTitle" placeholder="제목 (예: 배포 URL)">
+        <input type="text" id="resultLinkUrl" placeholder="링크 또는 텍스트">
+        <button id="addLinkBtn" style="flex: 0 0 auto;">추가</button>
+    </div>
+    <div id="uploadError" role="alert" style="color:#E64848; font-size:13px; margin-top:8px;"></div>
+    <ul id="uploadedFiles" style="list-style:none; padding:0; margin:10px 0 0;"></ul>
 </section>
 
+</div>
+
 <script>
-    const LOGS_KEY = 'activityLogs';
-    const PROFILE_KEY = 'profile';
-    const PROJECTS_KEY = 'projects';
+    // ── Supabase ─────────────────────────────
+    const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const CUSTOM_CATEGORIES_KEY = 'customCategories';
     const CURRENT_PROJECT_KEY = 'currentProjectId';
 
-    const CATEGORY_PLACEHOLDERS = {
-        '개발': 'API 연동 코드를 처음부터 짜봤다\n버그를 3시간 동안 추적해서 해결했다\n리팩토링해서 코드가 더 깔끔해졌다',
-        '기획/문서': '팀 PRD 초안을 작성했다\n요구사항을 우선순위별로 정리했다\n발표자료 스토리라인을 짰다',
-        '협업/회의': '팀원 의견 차이를 조율해서 합의를 이끌어냈다\n스탠드업 미팅에서 진행상황을 공유했다\n다른 팀원 코드리뷰를 도와줬다',
-        '학습': 'RAG 개념을 처음 배우고 직접 구현해봤다\n새로운 라이브러리 문서를 읽고 적용했다\n모르는 개념을 질문해서 이해했다',
-        '문제해결': '배포가 안 되는 원인을 끝까지 추적해서 해결했다\n예상 못한 엣지케이스를 발견하고 수정했다\n막힌 부분을 다른 방법으로 우회해서 풀었다',
-        '리더십': '팀 역할 분담을 주도적으로 제안했다\n의견이 갈릴 때 방향을 정리해서 이끌었다\n일정이 밀리는 팀원을 도와 마감을 맞췄다',
-        '기타': '새로운 도구를 사용해봤다\n캠프에서 네트워킹을 했다\n그 밖의 특별한 경험을 했다',
+    const BASE_CATEGORIES = ['개발', '기획/문서', '협업/회의', '학습', '문제해결', '리더십'];
+
+    const JOB_GROUPS = {
+        '백엔드 개발자': 'dev',
+        '프론트엔드 개발자': 'dev',
+        '데이터 분석가/사이언티스트': 'data',
+        'PM/기획자': 'pm',
+        '디자이너': 'design',
+        '마케터': 'marketing',
     };
+
+    const PLACEHOLDER_SETS = {
+        default: {
+            '개발': 'API 연동 코드를 처음부터 짜봤다\n버그를 3시간 동안 추적해서 해결했다\n리팩토링해서 코드가 더 깔끔해졌다',
+            '기획/문서': '팀 PRD 초안을 작성했다\n요구사항을 우선순위별로 정리했다\n발표자료 스토리라인을 짰다',
+            '협업/회의': '팀원 의견 차이를 조율해서 합의를 이끌어냈다\n스탠드업 미팅에서 진행상황을 공유했다\n다른 팀원 코드리뷰를 도와줬다',
+            '학습': 'RAG 개념을 처음 배우고 직접 구현해봤다\n새로운 라이브러리 문서를 읽고 적용했다\n모르는 개념을 질문해서 이해했다',
+            '문제해결': '배포가 안 되는 원인을 끝까지 추적해서 해결했다\n예상 못한 엣지케이스를 발견하고 수정했다\n막힌 부분을 다른 방법으로 우회해서 풀었다',
+            '리더십': '팀 역할 분담을 주도적으로 제안했다\n의견이 갈릴 때 방향을 정리해서 이끌었다\n일정이 밀리는 팀원을 도와 마감을 맞췄다',
+        },
+        dev: {
+            '개발': 'API 엔드포인트를 새로 설계하고 구현했다\n데이터베이스 쿼리 성능을 개선했다\nPR을 올리고 코드리뷰 피드백을 반영했다',
+            '기획/문서': '기능 명세서를 작성해서 팀과 공유했다\nAPI 문서를 최신 상태로 업데이트했다\n기술적 트레이드오프를 정리해서 제안했다',
+            '협업/회의': '백엔드-프론트엔드 인터페이스를 함께 정의했다\n스탠드업에서 블로커를 공유하고 도움을 받았다\n다른 개발자의 PR을 리뷰해줬다',
+            '학습': '새로운 프레임워크 공식문서를 읽고 예제를 따라해봤다\n테스트 코드 작성법을 배워서 적용했다\n에러 로그를 분석하는 방법을 익혔다',
+            '문제해결': '메모리 누수의 원인을 프로파일링으로 찾아냈다\n동시성 버그를 재현해서 수정했다\n배포 실패 원인을 로그로 추적해 해결했다',
+            '리더십': '기술 스택 선택을 주도적으로 제안하고 설득했다\n주니어 개발자의 코드 작성을 도와줬다\n일정이 밀린 부분을 파악해 우선순위를 재조정했다',
+        },
+        data: {
+            '개발': '데이터 파이프라인 스크립트를 작성했다\n모델 학습 코드를 리팩토링했다\n대시보드에 새 지표를 추가했다',
+            '기획/문서': '분석 목적과 가설을 문서로 정리했다\n지표 정의서를 작성해서 팀에 공유했다\n분석 결과 보고서 초안을 만들었다',
+            '협업/회의': '현업 팀과 요구사항을 조율했다\n분석 결과를 발표하고 질문에 답했다\n동료의 분석 방법론을 리뷰해줬다',
+            '학습': '새로운 통계 기법을 공부하고 적용해봤다\nSQL 최적화 방법을 배웠다\n논문을 읽고 우리 데이터에 적용 가능한지 검토했다',
+            '문제해결': '데이터 이상치의 원인을 끝까지 추적했다\n모델 성능이 떨어진 원인을 분석해 수정했다\n전처리 로직의 버그를 찾아 고쳤다',
+            '리더십': '분석 방향을 팀에 제안하고 합의를 이끌었다\n데이터 품질 기준을 새로 세웠다\n동료의 분석 작업을 도와 마감을 맞췄다',
+        },
+        pm: {
+            '개발': '직접 프로토타입을 코드로 만들어봤다\n노코드 툴로 MVP를 구현했다\n간단한 자동화 스크립트를 짰다',
+            '기획/문서': 'PRD를 작성해서 팀과 방향을 맞췄다\n우선순위를 정리한 로드맵을 만들었다\n사용자 시나리오를 문서화했다',
+            '협업/회의': '이해관계자 의견을 조율해서 합의를 이끌어냈다\n스프린트 회고를 진행했다\n디자이너·개발자와 요구사항을 맞췄다',
+            '학습': '사용자 인터뷰 기법을 배우고 적용했다\n경쟁 서비스를 분석해봤다\n새로운 기획 프레임워크를 공부했다',
+            '문제해결': '사용자 이탈의 원인을 데이터로 찾아냈다\n일정이 밀리는 원인을 파악해 재조정했다\n애매했던 요구사항을 명확하게 재정의했다',
+            '리더십': '팀의 우선순위를 주도적으로 제안했다\n의견 충돌을 조율해서 방향을 정리했다\n팀원들의 작업을 조율해 마감을 맞췄다',
+        },
+        design: {
+            '개발': '간단한 인터랙션을 코드로 프로토타이핑했다\n디자인 시스템 컴포넌트를 정리했다\nHTML/CSS로 시안을 직접 구현해봤다',
+            '기획/문서': '디자인 가이드 문서를 작성했다\n사용자 플로우를 와이어프레임으로 정리했다\n디자인 의도를 정리해서 팀에 공유했다',
+            '협업/회의': '개발자와 구현 가능성을 논의했다\n디자인 리뷰에서 피드백을 주고받았다\nPM과 우선순위를 조율했다',
+            '학습': '새로운 디자인 툴 기능을 익혔다\n타 서비스의 UX 패턴을 분석했다\n접근성 가이드라인을 공부했다',
+            '문제해결': '사용성 테스트에서 발견된 문제를 개선했다\n디자인과 개발 간 불일치를 찾아 수정했다\n복잡했던 플로우를 단순화했다',
+            '리더십': '디자인 방향을 제안하고 설득했다\n주니어 디자이너의 작업을 리뷰해줬다\n일정에 맞춰 작업을 조율했다',
+        },
+        marketing: {
+            '개발': '간단한 랜딩페이지를 직접 만들어봤다\n마케팅 자동화 스크립트를 설정했다\n데이터 트래킹 코드를 심었다',
+            '기획/문서': '캠페인 기획안을 작성했다\n타겟 페르소나를 문서로 정리했다\n콘텐츠 캘린더를 만들었다',
+            '협업/회의': '디자이너와 캠페인 소재를 논의했다\n팀 회의에서 성과를 공유했다\n다른 팀과 협업 캠페인을 조율했다',
+            '학습': '새로운 광고 플랫폼 기능을 공부했다\n경쟁사 마케팅 전략을 분석했다\n카피라이팅 기법을 배웠다',
+            '문제해결': '전환율이 낮은 원인을 데이터로 분석했다\n캠페인 예산 초과 원인을 찾아 조정했다\nA/B 테스트로 문제를 검증하고 개선했다',
+            '리더십': '캠페인 방향을 제안하고 팀을 설득했다\n일정이 밀리는 작업을 조율해 맞췄다\n팀원의 작업을 리뷰하고 피드백을 줬다',
+        },
+    };
+
+    const GENERIC_PLACEHOLDER = '오늘 있었던 일을 3줄 정도로 적어보세요\n구체적인 상황과 결과를 남기면 나중에 더 도움이 돼요\n짧아도 괜찮아요';
+
+    function getPlaceholder(category) {
+        const groupKey = (profileCache && JOB_GROUPS[profileCache.job]) || 'default';
+        const set = PLACEHOLDER_SETS[groupKey] || PLACEHOLDER_SETS.default;
+        return set[category] || PLACEHOLDER_SETS.default[category] || GENERIC_PLACEHOLDER;
+    }
 
     const timelineEl = document.getElementById('timeline');
     const emptyStateEl = document.getElementById('emptyState');
     const genBtn = document.getElementById('genBtn');
-    const resultEl = document.getElementById('result');
+    const resultBoxEl = document.getElementById('resultBox');
+    const resultEditEl = document.getElementById('resultEdit');
+    const saveConfirmEl = document.getElementById('saveConfirm');
     const errorEl = document.getElementById('error');
     const loadingEl = document.getElementById('loading');
-    const apiKeyEl = document.getElementById('apiKey');
     const filterBarEl = document.getElementById('filterBar');
     const logInputEl = document.getElementById('logInput');
-    const categorySelectEl = document.getElementById('categorySelect');
+    const logDateInputEl = document.getElementById('logDateInput');
     const projectSelectEl = document.getElementById('projectSelect');
+    const timelineSearchEl = document.getElementById('timelineSearch');
 
+    let currentUser = null;
+    let profileCache = null;
+    let projectsCache = [];
+    let logsCache = [];           // 현재 프로젝트의 기록
     let selectedDate = null;      // 캘린더에서 선택된 날짜(YYYY-MM-DD) 필터
-    let currentProjectId = null;  // 현재 선택된 프로젝트
-
-    // ── API 키 (로컬 테스트용) ─────────────────────────────
-    apiKeyEl.value = localStorage.getItem('openaiKey') || '';
-    apiKeyEl.addEventListener('change', () => {
-        localStorage.setItem('openaiKey', apiKeyEl.value.trim());
-    });
+    let currentProjectId = null;  // 현재 선택된 프로젝트 id (uuid)
+    let selectedCategory = null;  // 현재 선택된 분류
+    let calYear, calMonth;        // 캘린더에 보이는 연/월 (0-indexed 월)
+    let searchTerm = '';          // 타임라인 검색어
 
     // ── 유틸 ─────────────────────────────
     function todayStr() {
@@ -233,36 +279,111 @@
         return div.innerHTML;
     }
 
-    // ── 프로젝트 ─────────────────────────────
-    function loadProjects() {
-        try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]'); }
-        catch (e) { return []; }
+    function downloadText(filename, text) {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
-    function saveProjects(projects) {
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    // ── 인증 (익명 로그인, 세션은 브라우저에 자동 유지) ─────────────────────────────
+    async function ensureAuth() {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) return session.user;
+        const { data, error } = await sb.auth.signInAnonymously();
+        if (error) throw error;
+        return data.user;
     }
 
-    function ensureProjects() {
-        let projects = loadProjects();
-        if (projects.length === 0) {
-            const defaultProject = { id: Date.now(), name: '기본 프로젝트' };
-            projects = [defaultProject];
-            saveProjects(projects);
+    // ── 프로필 ─────────────────────────────
+    async function fetchProfile() {
+        const { data, error } = await sb.from('profiles').select('*').maybeSingle();
+        if (error || !data) return null;
+        return { job: data.job, year: data.year };
+    }
 
-            // 프로젝트 개념이 생기기 전에 저장된 로그는 기본 프로젝트로 편입
-            const logs = loadLogs();
-            let changed = false;
-            logs.forEach(l => { if (!l.projectId) { l.projectId = defaultProject.id; changed = true; } });
-            if (changed) saveLogs(logs);
+    async function saveProfileRow(profile) {
+        await sb.from('profiles').upsert({
+            user_id: currentUser.id, job: profile.job, year: profile.year, updated_at: new Date().toISOString()
+        });
+    }
+
+    function renderProfileBar() {
+        const bar = document.getElementById('profileBar');
+        if (!profileCache) { bar.innerHTML = ''; return; }
+
+        bar.innerHTML = `학년/상태: <b>${escapeHtml(profileCache.year || '-')}</b> · 희망 직무: <b>${escapeHtml(profileCache.job || '-')}</b> &nbsp;
+            <button class="link" id="editProfileBtn">수정</button>`;
+        document.getElementById('editProfileBtn').addEventListener('click', () => {
+            document.getElementById('profileEditForm').classList.toggle('open');
+        });
+    }
+
+    document.getElementById('jobSelect').addEventListener('change', (e) => {
+        document.getElementById('jobCustom').style.display = (e.target.value === '기타') ? 'block' : 'none';
+    });
+
+    document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+        const jobSelect = document.getElementById('jobSelect').value;
+        const jobCustom = document.getElementById('jobCustom').value.trim();
+        const job = jobSelect === '기타' ? (jobCustom || '기타') : jobSelect;
+        const year = document.getElementById('yearSelect').value;
+
+        if (!job || !year) return;
+
+        await saveProfileRow({ job, year });
+        profileCache = { job, year };
+        renderProfileBar();
+        document.getElementById('profileEditForm').classList.remove('open');
+        if (selectedCategory) logInputEl.placeholder = getPlaceholder(selectedCategory);
+    });
+
+    // ── 온보딩 ─────────────────────────────
+    document.getElementById('onbJobSelect').addEventListener('change', (e) => {
+        document.getElementById('onbJobCustom').style.display = (e.target.value === '기타') ? 'block' : 'none';
+    });
+
+    document.getElementById('onbStartBtn').addEventListener('click', async () => {
+        const jobSelect = document.getElementById('onbJobSelect').value;
+        const jobCustom = document.getElementById('onbJobCustom').value.trim();
+        const job = jobSelect === '기타' ? (jobCustom || '기타') : jobSelect;
+        const year = document.getElementById('onbYearSelect').value;
+        const errEl = document.getElementById('onbError');
+
+        if (!job || !year) {
+            errEl.textContent = '희망 직무와 학년/상태를 모두 선택해주세요.';
+            errEl.style.display = 'block';
+            return;
         }
-        return projects;
+        errEl.style.display = 'none';
+        await saveProfileRow({ job, year });
+        profileCache = { job, year };
+        await enterMainApp();
+    });
+
+    async function enterMainApp() {
+        document.getElementById('onboardingScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        renderProfileBar();
+        renderCategoryButtons();
+        await bootMainApp();
+    }
+
+    // ── 프로젝트 ─────────────────────────────
+    async function fetchProjects() {
+        const { data, error } = await sb.from('projects').select('*').order('created_at', { ascending: true });
+        if (error) { console.error(error); return []; }
+        return data;
     }
 
     function renderProjectSelect() {
-        const projects = loadProjects();
         projectSelectEl.innerHTML = '';
-        projects.forEach(p => {
+        projectsCache.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
             opt.textContent = p.name;
@@ -271,122 +392,219 @@
         });
     }
 
-    projectSelectEl.addEventListener('change', () => {
-        currentProjectId = Number(projectSelectEl.value);
-        localStorage.setItem(CURRENT_PROJECT_KEY, String(currentProjectId));
+    projectSelectEl.addEventListener('change', async () => {
+        currentProjectId = projectSelectEl.value;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
         selectedDate = null;
-        renderAll();
+        await renderAll();
     });
 
-    document.getElementById('addProjectBtn').addEventListener('click', () => {
+    // ── GitHub 커밋 자동 가져오기 (Tool 호출) ─────────────────────────────
+    const GITHUB_REPO_KEY = 'githubRepo';
+    const githubRepoInputEl = document.getElementById('githubRepoInput');
+    githubRepoInputEl.value = localStorage.getItem(GITHUB_REPO_KEY) || '';
+
+    document.getElementById('fetchCommitsBtn').addEventListener('click', async () => {
+        const repo = githubRepoInputEl.value.trim();
+        const errEl = document.getElementById('githubError');
+        const listEl = document.getElementById('commitList');
+        errEl.style.display = 'none';
+        listEl.innerHTML = '';
+
+        if (!repo || !repo.includes('/')) {
+            errEl.textContent = 'owner/repo 형식으로 입력해주세요 (예: song-eunji/bigdatacamp2026)';
+            errEl.style.display = 'block';
+            return;
+        }
+        localStorage.setItem(GITHUB_REPO_KEY, repo);
+
+        try {
+            const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=10`);
+            if (!res.ok) {
+                if (res.status === 404) throw new Error('저장소를 찾을 수 없어요 (비공개 저장소는 지원 안 해요).');
+                if (res.status === 403) throw new Error('GitHub API 요청 한도를 초과했어요. 잠시 후 다시 시도해주세요.');
+                throw new Error(`GitHub API 요청 실패 (status ${res.status})`);
+            }
+            const commits = await res.json();
+            if (!Array.isArray(commits) || commits.length === 0) {
+                listEl.innerHTML = '<li class="empty">커밋이 없어요.</li>';
+                return;
+            }
+
+            commits.forEach(c => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding:10px 0; border-bottom:1px dashed var(--border);';
+                const date = (c.commit?.author?.date || '').slice(0, 10);
+                const message = (c.commit?.message || '').split('\n')[0];
+
+                li.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="log-date">${escapeHtml(date)}</span>
+                        <span style="flex:1; font-size:13px;">${escapeHtml(message)}</span>
+                        <button class="secondary" type="button">+ 기록에 추가</button>
+                    </div>
+                `;
+                li.querySelector('button').addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    btn.disabled = true;
+                    btn.textContent = '추가 중...';
+                    const { error } = await sb.from('logs').insert({
+                        user_id: currentUser.id, project_id: currentProjectId, date,
+                        text: `[GitHub] ${message}`.slice(0, 500), category: '개발'
+                    });
+                    if (error) {
+                        console.error(error);
+                        btn.textContent = '실패';
+                        return;
+                    }
+                    btn.textContent = '✓ 추가됨';
+                    await renderAll();
+                });
+                listEl.appendChild(li);
+            });
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.style.display = 'block';
+        }
+    });
+
+    document.getElementById('addProjectBtn').addEventListener('click', async () => {
         const nameInput = document.getElementById('newProjectName');
         const name = nameInput.value.trim();
         if (!name) return;
 
-        const projects = loadProjects();
-        const newProject = { id: Date.now(), name };
-        projects.push(newProject);
-        saveProjects(projects);
+        const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name }).select().single();
+        if (error) { console.error(error); return; }
 
-        currentProjectId = newProject.id;
-        localStorage.setItem(CURRENT_PROJECT_KEY, String(currentProjectId));
+        projectsCache.push(data);
+        currentProjectId = data.id;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
         nameInput.value = '';
         selectedDate = null;
         renderProjectSelect();
-        renderAll();
+        await renderAll();
     });
 
-    // ── 로그 저장/조회 ─────────────────────────────
-    function loadLogs() {
-        try { return JSON.parse(localStorage.getItem(LOGS_KEY) || '[]'); }
+    // ── 분류 (버튼형 + 커스텀 추가, 로컬 보관) ─────────────────────────────
+    function loadCustomCategories() {
+        try { return JSON.parse(localStorage.getItem(CUSTOM_CATEGORIES_KEY) || '[]'); }
         catch (e) { return []; }
     }
 
-    function saveLogs(logs) {
-        localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+    function saveCustomCategories(list) {
+        localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(list));
     }
 
-    function logsForCurrentProject() {
-        return loadLogs().filter(l => l.projectId === currentProjectId);
+    function allCategories() {
+        return [...BASE_CATEGORIES, ...loadCustomCategories()];
     }
 
-    function deleteLog(id) {
-        saveLogs(loadLogs().filter(l => l.id !== id));
-        renderAll();
+    function renderCategoryButtons() {
+        const container = document.getElementById('categoryButtons');
+        container.innerHTML = '';
+
+        allCategories().forEach(cat => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cat-btn' + (cat === selectedCategory ? ' active' : '');
+            btn.textContent = cat;
+            btn.addEventListener('click', () => {
+                selectedCategory = cat;
+                logInputEl.placeholder = getPlaceholder(cat);
+                renderCategoryButtons();
+            });
+            container.appendChild(btn);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'cat-btn cat-btn-add';
+        addBtn.textContent = '+ 추가';
+        addBtn.addEventListener('click', () => {
+            const name = window.prompt('새 분류 이름을 입력하세요 (예: 발표, 네트워킹)');
+            const trimmed = (name || '').trim();
+            if (!trimmed) return;
+
+            if (!allCategories().includes(trimmed)) {
+                const customs = loadCustomCategories();
+                customs.push(trimmed);
+                saveCustomCategories(customs);
+            }
+            selectedCategory = trimmed;
+            logInputEl.placeholder = getPlaceholder(trimmed);
+            renderCategoryButtons();
+        });
+        container.appendChild(addBtn);
     }
 
-    categorySelectEl.addEventListener('change', () => {
-        logInputEl.placeholder = CATEGORY_PLACEHOLDERS[categorySelectEl.value] || '';
-    });
+    // ── 로그 ─────────────────────────────
+    async function fetchLogsForProject(projectId) {
+        const { data, error } = await sb.from('logs').select('*').eq('project_id', projectId).order('date', { ascending: true });
+        if (error) { console.error(error); return []; }
+        return data;
+    }
 
-    document.getElementById('saveBtn').addEventListener('click', () => {
+    async function fetchAllLogDates() {
+        const { data, error } = await sb.from('logs').select('date');
+        if (error) { console.error(error); return []; }
+        return data.map(d => d.date);
+    }
+
+    async function deleteLog(id) {
+        await sb.from('logs').delete().eq('id', id);
+        await renderAll();
+    }
+
+    async function updateLog(id, text, category) {
+        await sb.from('logs').update({ text, category }).eq('id', id);
+        await renderAll();
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
         const text = logInputEl.value.trim();
         if (!text) return; // 공백만 있을 때 저장 방지
 
-        const category = categorySelectEl.value;
-        const logs = loadLogs();
-        logs.push({ id: Date.now(), date: todayStr(), text: text.slice(0, 500), category, projectId: currentProjectId });
-        saveLogs(logs);
+        const date = logDateInputEl.value || todayStr();
+        const { error } = await sb.from('logs').insert({
+            user_id: currentUser.id, project_id: currentProjectId, date,
+            text: text.slice(0, 500), category: selectedCategory
+        });
+        if (error) { console.error(error); return; }
+
         logInputEl.value = '';
-        renderAll();
+        logDateInputEl.value = todayStr(); // 다음 입력은 기본값 오늘로 리셋
+        await renderAll();
     });
 
-    // ── 프로필 ─────────────────────────────
-    function loadProfile() {
-        try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); }
-        catch (e) { return null; }
-    }
-
-    function saveProfile(profile) {
-        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    }
-
-    function renderProfile() {
-        const profile = loadProfile();
-        const summaryEl = document.getElementById('profileSummary');
-        const formEl = document.getElementById('profileForm');
-
-        if (profile && profile.job) {
-            summaryEl.innerHTML = `설정됨: <b>${escapeHtml(profile.year || '-')}</b> · 희망 직무 <b>${escapeHtml(profile.job)}</b> &nbsp;
-                <button class="link" id="editProfileBtn">수정</button>`;
-            formEl.classList.remove('open');
-            document.getElementById('editProfileBtn').addEventListener('click', () => {
-                formEl.classList.add('open');
-            });
+    // ── 연속 기록 스트릭 ─────────────────────────────
+    async function updateStreak() {
+        const dateSet = new Set(await fetchAllLogDates());
+        let streak = 0;
+        const cursor = new Date();
+        if (!dateSet.has(cursor.toISOString().slice(0, 10))) {
+            cursor.setDate(cursor.getDate() - 1);
+        }
+        while (dateSet.has(cursor.toISOString().slice(0, 10))) {
+            streak++;
+            cursor.setDate(cursor.getDate() - 1);
+        }
+        const badge = document.getElementById('streakBadge');
+        if (streak >= 2) {
+            badge.textContent = `🔥 ${streak}일 연속 기록 중`;
+            badge.style.display = 'inline-flex';
         } else {
-            summaryEl.innerHTML = '';
-            formEl.classList.add('open');
+            badge.style.display = 'none';
         }
     }
 
-    document.getElementById('jobSelect').addEventListener('change', (e) => {
-        document.getElementById('jobCustom').style.display = (e.target.value === '기타') ? 'block' : 'none';
-    });
-
-    document.getElementById('saveProfileBtn').addEventListener('click', () => {
-        const jobSelect = document.getElementById('jobSelect').value;
-        const jobCustom = document.getElementById('jobCustom').value.trim();
-        const job = jobSelect === '기타' ? (jobCustom || '기타') : jobSelect;
-        const year = document.getElementById('yearSelect').value;
-
-        if (!job && !year) { renderProfile(); return; } // 둘 다 비었으면 그냥 무시(선택사항)
-
-        saveProfile({ job, year });
-        renderProfile();
-    });
-
-    // ── 캘린더 ─────────────────────────────
+    // ── 캘린더 (월 이동 + 날짜 클릭 시 기록 날짜도 채움) ─────────────────────────────
     function renderCalendar() {
-        const logs = logsForCurrentProject();
-        const logDates = new Set(logs.map(l => l.date));
+        const logDates = new Set(logsCache.map(l => l.date));
 
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth(); // 0-indexed
-        const firstDay = new Date(year, month, 1).getDay(); // 0=일
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=일
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
-        document.getElementById('calendarHeader').textContent = `${year}년 ${month + 1}월`;
+        document.getElementById('calLabel').textContent = `${calYear}년 ${calMonth + 1}월`;
 
         const grid = document.getElementById('calendarGrid');
         grid.innerHTML = '';
@@ -405,31 +623,58 @@
         }
 
         for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const el = document.createElement('div');
             el.className = 'cal-day';
             if (logDates.has(dateStr)) el.classList.add('has-log');
             if (dateStr === todayStr()) el.classList.add('today');
             if (dateStr === selectedDate) el.classList.add('selected');
             el.textContent = d;
-            el.addEventListener('click', () => {
+            el.addEventListener('click', async () => {
+                if (dateStr <= todayStr()) logDateInputEl.value = dateStr; // 지난 날짜 클릭 시 기록 입력 날짜도 맞춰줌
                 selectedDate = (selectedDate === dateStr) ? null : dateStr;
-                renderAll();
+                renderCalendarAndTimelineOnly();
             });
             grid.appendChild(el);
         }
 
-        // 카테고리 분포 (현재 프로젝트 기준)
         const counts = {};
-        logs.forEach(l => { counts[l.category || '기타'] = (counts[l.category || '기타'] || 0) + 1; });
+        logsCache.forEach(l => { counts[l.category || '기타'] = (counts[l.category || '기타'] || 0) + 1; });
         const countStr = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ');
         document.getElementById('catCounts').textContent = countStr ? `분류별 기록: ${countStr}` : '';
     }
 
-    // ── 타임라인 (토글형) ─────────────────────────────
+    function renderCalendarAndTimelineOnly() {
+        renderCalendar();
+        renderTimeline();
+    }
+
+    document.getElementById('calPrevBtn').addEventListener('click', () => {
+        calMonth--;
+        if (calMonth < 0) { calMonth = 11; calYear--; }
+        renderCalendar();
+    });
+
+    document.getElementById('calNextBtn').addEventListener('click', () => {
+        calMonth++;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        renderCalendar();
+    });
+
+    // ── 타임라인 (토글 + 수정 + 검색) ─────────────────────────────
+    timelineSearchEl.addEventListener('input', () => {
+        searchTerm = timelineSearchEl.value.trim();
+        renderTimeline();
+    });
+
     function renderTimeline() {
-        const allLogs = logsForCurrentProject();
-        const logs = selectedDate ? allLogs.filter(l => l.date === selectedDate) : allLogs;
+        const allLogs = logsCache;
+        let logs = selectedDate ? allLogs.filter(l => l.date === selectedDate) : allLogs;
+
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase();
+            logs = logs.filter(l => l.text.toLowerCase().includes(q) || (l.category || '').toLowerCase().includes(q));
+        }
 
         filterBarEl.style.display = selectedDate ? 'block' : 'none';
         timelineEl.innerHTML = '';
@@ -439,9 +684,9 @@
             emptyStateEl.style.display = 'block';
             genBtn.disabled = true;
         } else if (logs.length === 0) {
-            emptyStateEl.textContent = '이 날짜엔 기록이 없어요.';
+            emptyStateEl.textContent = searchTerm ? '검색 결과가 없어요.' : '이 날짜엔 기록이 없어요.';
             emptyStateEl.style.display = 'block';
-            genBtn.disabled = false; // 필터 중이어도 프로젝트 전체 기록은 있으므로 생성 가능
+            genBtn.disabled = false;
         } else {
             emptyStateEl.style.display = 'none';
             genBtn.disabled = false;
@@ -452,6 +697,9 @@
             li.className = 'log-item';
             const firstLine = log.text.split('\n')[0];
             const preview = firstLine.length > 24 ? firstLine.slice(0, 24) + '…' : firstLine;
+            const catOptions = allCategories().map(c =>
+                `<option value="${escapeHtml(c)}" ${c === log.category ? 'selected' : ''}>${escapeHtml(c)}</option>`
+            ).join('');
 
             li.innerHTML = `
                 <div class="log-summary">
@@ -461,88 +709,142 @@
                 </div>
                 <div class="log-detail">
                     <div class="log-text">${escapeHtml(log.text)}</div>
-                    <button class="secondary" data-id="${log.id}">삭제</button>
+                    <button class="secondary" data-action="edit">수정</button>
+                    <button class="secondary" data-action="delete">삭제</button>
+                </div>
+                <div class="log-edit">
+                    <textarea>${escapeHtml(log.text)}</textarea>
+                    <select>${catOptions}</select>
+                    <button class="secondary" data-action="save">저장</button>
+                    <button class="secondary" data-action="cancel">취소</button>
                 </div>
             `;
-            li.querySelector('.log-summary').addEventListener('click', () => {
-                li.classList.toggle('open');
+
+            const detailEl = li.querySelector('.log-detail');
+            const editEl = li.querySelector('.log-edit');
+
+            li.querySelector('.log-summary').addEventListener('click', () => li.classList.toggle('open'));
+
+            li.querySelector('[data-action="edit"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                detailEl.style.display = 'none';
+                editEl.style.display = 'block';
             });
-            li.querySelector('button').addEventListener('click', (e) => {
+            li.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
                 e.stopPropagation();
                 deleteLog(log.id);
             });
+            li.querySelector('[data-action="cancel"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                editEl.style.display = 'none';
+                detailEl.style.display = 'block';
+            });
+            li.querySelector('[data-action="save"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const newText = editEl.querySelector('textarea').value.trim();
+                const newCategory = editEl.querySelector('select').value;
+                if (!newText) return;
+                updateLog(log.id, newText.slice(0, 500), newCategory);
+            });
+
             timelineEl.appendChild(li);
         });
     }
 
     document.getElementById('clearFilterBtn').addEventListener('click', () => {
         selectedDate = null;
-        renderAll();
+        renderCalendarAndTimelineOnly();
     });
 
-    function renderAll() {
+    async function renderAll() {
+        logsCache = await fetchLogsForProject(currentProjectId);
         renderCalendar();
         renderTimeline();
+        await updateStreak();
+        if (window.refreshUploads) window.refreshUploads();
     }
 
-    // ── 포트폴리오 생성 ─────────────────────────────
+    // ── 포트폴리오 생성 · 저장 (모아보기는 portfolios.html) ─────────────────────────────
     genBtn.addEventListener('click', async () => {
-        const logs = logsForCurrentProject();
+        const logs = logsCache;
         if (logs.length === 0) return;
 
-        const apiKey = apiKeyEl.value.trim();
-        if (!apiKey) { showError('API 키를 먼저 입력해주세요.'); return; }
-
         errorEl.style.display = 'none';
-        resultEl.style.display = 'none';
+        resultBoxEl.style.display = 'none';
+        saveConfirmEl.style.display = 'none';
         loadingEl.style.display = 'block';
         genBtn.disabled = true;
 
-        const projects = loadProjects();
-        const project = projects.find(p => p.id === currentProjectId);
+        const project = projectsCache.find(p => p.id === currentProjectId);
         const logText = logs.map(l => `[${l.date}][${l.category || '기타'}] ${l.text}`).join('\n');
-        const profile = loadProfile();
 
         let profileLine = '';
         let directionAsk = '';
-        if (profile && profile.job) {
-            profileLine = `\n이 사람의 상태: ${profile.year || '미상'}, 희망 직무: ${profile.job}\n`;
-            directionAsk = `- 마지막에 "🎯 ${profile.job} 관점 방향성 제안" 섹션을 추가하고, 강점 1줄 · 보완할 점 1줄 · 다음에 시도하면 좋을 활동 1줄을 불릿으로 제시\n`;
+        if (profileCache && profileCache.job) {
+            profileLine = `- 지원 관점: ${profileCache.job} (${profileCache.year || '미상'})\n`;
+            directionAsk = `\n## 🎯 ${profileCache.job} 관점 방향성 제안\n(강점 1줄 · 보완할 점 1줄 · 다음에 시도하면 좋을 활동 1줄, 불릿으로)\n`;
         }
 
         const prompt = `아래는 "${project ? project.name : '프로젝트'}" 기간 동안 매일 남긴 짧은 활동 기록입니다. 각 줄은 [날짜][분류] 텍스트 형식입니다.
-이 기록들을 근거로 "성장 스토리형 포트폴리오 초안"을 작성해주세요.
-${profileLine}
-요구사항:
-- 제목에 프로젝트 이름("${project ? project.name : ''}")을 포함
-- 시간순으로 어떤 역량/경험이 어떻게 쌓였는지 한 편의 짧은 스토리처럼 서술
-- 문단마다 근거가 된 날짜를 괄호로 표시 (예: (07/13))
-- 분류(개발/기획/협업/학습/문제해결/리더십 등) 분포에 대한 짧은 코멘트 한 줄 추가
-- 마지막에 "핵심 성과 3줄 요약"을 불릿으로 추가
-${directionAsk}- 과장하지 말고 기록에 있는 내용만 근거로 사용
-- 한국어로, 900자 내외
+
+이 기록을 바탕으로, 실제 채용 담당자가 읽는 포트폴리오처럼 **STAR 기법(상황-과제-행동-결과)**과 **정량적 성과 중심(XYZ 형식: "~함으로써 ~를 ~만큼 달성/개선")**으로 정리해주세요. 막연한 나열이 아니라 "무엇을 어떻게 해결했는지"가 드러나야 합니다.
+
+아래 마크다운 형식 그대로 작성:
+
+# ${project ? project.name : '프로젝트'} 포트폴리오
+
+## 한 줄 요약
+(무엇을 해서 어떤 결과를 냈는지 1~2문장. XYZ 형식 지향)
+
+## 프로젝트 개요
+- 기간: (기록 날짜 범위, 예: 07/10~07/13)
+${profileLine}- 활동 분류: (기록에 나온 분류 요약)
+
+## 주요 활동 (2~4개, 비슷한 기록끼리 묶어서 STAR 구조로)
+각 항목을 "### 소제목"과 아래 4줄로:
+- 상황(Situation):
+- 과제(Task):
+- 행동(Action):
+- 결과(Result): (수치화 가능하면 수치로, 아니면 구체적인 정성적 결과로)
+
+## 핵심 성과 요약
+(불릿 3~5개, "~함으로써 ~를 ~만큼" 형태 지향)
+${directionAsk}
+규칙:
+- 항목마다 근거가 된 날짜를 괄호로 표시 (예: (07/13))
+- 기록에 없는 사실·수치는 절대 만들어내지 말 것 — 없으면 정성적으로 서술
+- 한국어로 작성, 전체 1200자 내외
 
 기록:
 ${logText}`;
 
         try {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            const res = await fetch('/api/portfolio', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }] })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
             });
 
+            const data = await res.json();
             if (!res.ok) {
-                const errBody = await res.json().catch(() => ({}));
-                throw new Error(errBody?.error?.message || `요청 실패 (status ${res.status})`);
+                throw new Error(data?.error || `요청 실패 (status ${res.status})`);
             }
 
-            const data = await res.json();
-            const draft = data.choices?.[0]?.message?.content?.trim();
+            let draft = data.reply;
             if (!draft) throw new Error('응답에서 결과를 찾지 못했어요.');
 
-            resultEl.textContent = draft;
-            resultEl.style.display = 'block';
+            const uploads = window.getCurrentProjectUploads ? await window.getCurrentProjectUploads() : [];
+            if (uploads.length > 0) {
+                const resultsSection = uploads.map(u =>
+                    u.kind === 'link' ? `- [${u.name}](${u.url})` : `- ${u.name} (첨부 파일)`
+                ).join('\n');
+                draft += `\n\n## 🔗 결과물\n${resultsSection}`;
+            }
+
+            resultEditEl.value = draft;
+            resultEditEl.dataset.projectId = currentProjectId;
+            resultEditEl.dataset.projectName = project ? project.name : '프로젝트';
+            resultBoxEl.style.display = 'block';
         } catch (e) {
             showError(e.message || '알 수 없는 오류가 발생했어요.');
         } finally {
@@ -551,28 +853,70 @@ ${logText}`;
         }
     });
 
+    document.getElementById('savePortfolioBtn').addEventListener('click', async () => {
+        const content = resultEditEl.value.trim();
+        if (!content) return;
+
+        const { error } = await sb.from('portfolios').insert({
+            user_id: currentUser.id,
+            project_id: resultEditEl.dataset.projectId || currentProjectId,
+            project_name: resultEditEl.dataset.projectName || '프로젝트',
+            content,
+        });
+        if (error) { console.error(error); return; }
+        saveConfirmEl.style.display = 'inline';
+    });
+
+    document.getElementById('downloadPortfolioBtn').addEventListener('click', () => {
+        const content = resultEditEl.value.trim();
+        if (!content) return;
+        const projectName = resultEditEl.dataset.projectName || '포트폴리오';
+        downloadText(`${projectName}_포트폴리오.txt`, content);
+    });
+
     function showError(msg) {
         errorEl.textContent = msg;
         errorEl.style.display = 'block';
     }
 
-    // ── 초기화 ─────────────────────────────
-    ensureProjects();
-    currentProjectId = Number(localStorage.getItem(CURRENT_PROJECT_KEY)) || loadProjects()[0].id;
-    renderProjectSelect();
-    logInputEl.placeholder = CATEGORY_PLACEHOLDERS[categorySelectEl.value] || '';
-    renderProfile();
-    renderAll();
-</script>
+    // ── 부트스트랩 ─────────────────────────────
+    async function bootMainApp() {
+        projectsCache = await fetchProjects();
+        if (projectsCache.length === 0) {
+            const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name: '기본 프로젝트' }).select().single();
+            if (!error) projectsCache = [data];
+        }
 
-<section aria-labelledby="uploadTitle">
-    <h2 id="uploadTitle">결과물 업로드</h2>
-    <label for="resultFiles">결과물 파일 선택</label>
-    <input type="file" id="resultFiles" multiple>
-    <div class="hint">파일은 이 브라우저에만 저장됩니다. 파일당 최대 10MB까지 업로드할 수 있어요.</div>
-    <div id="uploadError" role="alert" style="color:#c0392b; font-size:13px; margin-top:8px;"></div>
-    <ul id="uploadedFiles" style="list-style:none; padding:0; margin:10px 0 0;"></ul>
-</section>
+        const savedId = localStorage.getItem(CURRENT_PROJECT_KEY);
+        currentProjectId = (savedId && projectsCache.find(p => p.id === savedId)) ? savedId : projectsCache[0].id;
+        renderProjectSelect();
+
+        const _today = new Date();
+        calYear = _today.getFullYear();
+        calMonth = _today.getMonth();
+        logDateInputEl.max = todayStr();
+        logDateInputEl.value = todayStr();
+
+        selectedCategory = allCategories()[0];
+        renderCategoryButtons();
+
+        await renderAll();
+    }
+
+    async function init() {
+        currentUser = await ensureAuth();
+        profileCache = await fetchProfile();
+        if (profileCache && profileCache.job && profileCache.year) {
+            await enterMainApp();
+        }
+    }
+
+    init().catch(err => {
+        console.error(err);
+        document.getElementById('onbError').textContent = '초기화 중 오류가 발생했어요. 새로고침해보세요.';
+        document.getElementById('onbError').style.display = 'block';
+    });
+</script>
 
 <script>
     (() => {
@@ -582,6 +926,7 @@ ${logText}`;
         const input = document.getElementById('resultFiles');
         const list = document.getElementById('uploadedFiles');
         const error = document.getElementById('uploadError');
+        let dbRef = null;
 
         function openDb() {
             return new Promise((resolve, reject) => {
@@ -600,10 +945,26 @@ ${logText}`;
             });
         }
 
+        async function filesForCurrentProject(db) {
+            const all = await allFiles(db);
+            return all.filter(f => f.projectId === currentProjectId);
+        }
+
         function addFile(db, file) {
             return new Promise((resolve, reject) => {
                 const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({
-                    name: file.name, type: file.type, size: file.size, file, uploadedAt: new Date().toISOString()
+                    kind: 'file', name: file.name, type: file.type, size: file.size, file,
+                    projectId: currentProjectId, uploadedAt: new Date().toISOString()
+                });
+                request.onsuccess = resolve;
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function addLink(db, title, url) {
+            return new Promise((resolve, reject) => {
+                const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({
+                    kind: 'link', name: title, url, projectId: currentProjectId, uploadedAt: new Date().toISOString()
                 });
                 request.onsuccess = resolve;
                 request.onerror = () => reject(request.error);
@@ -622,22 +983,31 @@ ${logText}`;
             list.innerHTML = '';
             files.forEach(item => {
                 const li = document.createElement('li');
-                li.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed #eee;';
+                li.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--border);';
                 const name = document.createElement('span');
-                name.textContent = `${item.name} (${Math.ceil(item.size / 1024)}KB)`;
+                name.textContent = item.kind === 'link'
+                    ? `${item.name} — ${item.url}`
+                    : `${item.name} (${Math.ceil(item.size / 1024)}KB)`;
                 name.style.flex = '1';
                 const open = document.createElement('button');
                 open.type = 'button';
                 open.className = 'secondary';
                 open.textContent = '열기';
-                open.addEventListener('click', () => window.open(URL.createObjectURL(item.file), '_blank', 'noopener'));
+                open.addEventListener('click', () => {
+                    if (item.kind === 'link') {
+                        if (/^https?:\/\//i.test(item.url)) window.open(item.url, '_blank', 'noopener');
+                        else alert(item.url);
+                    } else {
+                        window.open(URL.createObjectURL(item.file), '_blank', 'noopener');
+                    }
+                });
                 const remove = document.createElement('button');
                 remove.type = 'button';
                 remove.className = 'secondary';
                 remove.textContent = '삭제';
                 remove.addEventListener('click', async () => {
                     await removeFile(db, item.id);
-                    render(await allFiles(db), db);
+                    render(await filesForCurrentProject(db), db);
                 });
                 li.append(name, open, remove);
                 list.appendChild(li);
@@ -645,7 +1015,9 @@ ${logText}`;
         }
 
         openDb().then(async db => {
-            render(await allFiles(db), db);
+            dbRef = db;
+            render(await filesForCurrentProject(db), db);
+
             input.addEventListener('change', async () => {
                 error.textContent = '';
                 for (const file of input.files) {
@@ -656,11 +1028,33 @@ ${logText}`;
                     await addFile(db, file);
                 }
                 input.value = '';
-                render(await allFiles(db), db);
+                render(await filesForCurrentProject(db), db);
+            });
+
+            document.getElementById('addLinkBtn').addEventListener('click', async () => {
+                const titleEl = document.getElementById('resultLinkTitle');
+                const urlEl = document.getElementById('resultLinkUrl');
+                const title = titleEl.value.trim();
+                const url = urlEl.value.trim();
+                if (!title || !url) return;
+                await addLink(db, title, url);
+                titleEl.value = '';
+                urlEl.value = '';
+                render(await filesForCurrentProject(db), db);
             });
         }).catch(() => {
             error.textContent = '이 브라우저에서는 파일 저장을 사용할 수 없습니다.';
         });
+
+        window.refreshUploads = async () => {
+            if (!dbRef) return;
+            render(await filesForCurrentProject(dbRef), dbRef);
+        };
+
+        window.getCurrentProjectUploads = async () => {
+            if (!dbRef) return [];
+            return filesForCurrentProject(dbRef);
+        };
     })();
 </script>
 </body>
