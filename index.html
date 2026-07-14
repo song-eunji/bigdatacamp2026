@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>활동 기록 → 포트폴리오 생성기</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<!-- ── 온보딩 게이트 ───────────────────────────── -->
+<div id="onboardingScreen">
+    <h1>📓 활동 기록 → 포트폴리오 생성기</h1>
+    <section>
+        <h2>시작하기 전에</h2>
+        <div class="hint">학년/상태와 희망 직무를 알려주시면, 기록 예시와 포트폴리오 방향성 제안이 맞춤으로 바뀌어요.</div>
+        <select id="onbJobSelect">
+            <option value="">희망 직무 선택</option>
+            <option value="백엔드 개발자">백엔드 개발자</option>
+            <option value="프론트엔드 개발자">프론트엔드 개발자</option>
+            <option value="데이터 분석가/사이언티스트">데이터 분석가</option>
+            <option value="PM/기획자">PM/기획자</option>
+            <option value="디자이너">디자이너</option>
+            <option value="마케터">마케터</option>
+            <option value="기타">기타(직접 입력)</option>
+        </select>
+        <input type="text" id="onbJobCustom" placeholder="희망 직무 직접 입력" style="display:none;">
+        <select id="onbYearSelect">
+            <option value="">학년/상태 선택</option>
+            <option value="1학년">1학년</option>
+            <option value="2학년">2학년</option>
+            <option value="3학년">3학년</option>
+            <option value="4학년">4학년</option>
+            <option value="휴학중">휴학중</option>
+            <option value="취업준비생">취업준비생</option>
+            <option value="직장인">직장인</option>
+            <option value="기타">기타</option>
+        </select>
+        <button id="onbStartBtn">시작하기</button>
+        <div id="onbError" style="color:#E64848; font-size:13px; display:none; margin-top:6px;"></div>
+    </section>
+</div>
+
+<!-- ── 메인 앱 ───────────────────────────── -->
+<div id="mainApp" style="display:none;">
+
+<div class="top-nav">
+    <span></span>
+    <a href="portfolios.html">📁 포트폴리오 모아보기 →</a>
+</div>
+
+<h1>📓 활동 기록 → 포트폴리오 생성기</h1>
+<div class="sub">매일 3줄만 남기면, 쌓인 기록으로 성장 스토리 초안을 만들어드려요.</div>
+<div id="streakBadge" class="streak-badge" style="display:none;"></div>
+
+<section>
+    <h2>내 정보</h2>
+    <div id="profileBar"></div>
+    <div id="jobRecommendation" class="profile-recommendation" aria-live="polite">
+        <b>🤖 AI 포트폴리오 방향성</b>
+        <div id="jobRecommendationText">희망 직무를 저장하면 AI가 포트폴리오 방향성을 제안해드려요.</div>
+    </div>
+    <div id="profileEditForm">
+        <select id="jobSelect">
+            <option value="">희망 직무 선택</option>
+            <option value="백엔드 개발자">백엔드 개발자</option>
+            <option value="프론트엔드 개발자">프론트엔드 개발자</option>
+            <option value="데이터 분석가/사이언티스트">데이터 분석가</option>
+            <option value="PM/기획자">PM/기획자</option>
+            <option value="디자이너">디자이너</option>
+            <option value="마케터">마케터</option>
+            <option value="기타">기타(직접 입력)</option>
+        </select>
+        <input type="text" id="jobCustom" placeholder="희망 직무 직접 입력" style="display:none;">
+        <select id="yearSelect">
+            <option value="">학년/상태 선택</option>
+            <option value="1학년">1학년</option>
+            <option value="2학년">2학년</option>
+            <option value="3학년">3학년</option>
+            <option value="4학년">4학년</option>
+            <option value="휴학중">휴학중</option>
+            <option value="취업준비생">취업준비생</option>
+            <option value="직장인">직장인</option>
+            <option value="기타">기타</option>
+        </select>
+        <button id="saveProfileBtn">저장</button>
+    </div>
+</section>
+
+<section>
+    <h2>프로젝트</h2>
+    <select id="projectSelect"></select>
+    <div class="row">
+        <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
+        <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
+    </div>
+    <div class="hint">프로젝트별로 기록·캘린더·포트폴리오가 따로 관리돼요. 이제 클라우드(Supabase)에 저장돼서 같은 브라우저면 언제든 다시 접속해도 유지돼요.</div>
+</section>
+
+<section>
+    <h2>기록 추가</h2>
+    <input type="date" id="logDateInput">
+    <div id="categoryButtons" class="cat-btns"></div>
+    <textarea id="logInput"></textarea>
+    <button id="saveBtn">저장</button>
+    <div class="hint">지난 날짜를 골라서 그날 기록도 추가할 수 있어요 (캘린더에서 날짜를 클릭해도 자동으로 채워져요). 분류를 바꾸면 예시 문구도 바뀌고, "+ 추가"로 나만의 분류를 만들 수 있어요.</div>
+</section>
+
+<section>
+    <h2>🤖 GitHub 커밋 자동 가져오기</h2>
+    <div class="hint">저장소의 최근 커밋을 불러와서 원클릭으로 기록에 추가할 수 있어요. (공개 저장소만 지원)</div>
+    <div class="row">
+        <input type="text" id="githubRepoInput" placeholder="owner/repo (예: song-eunji/bigdatacamp2026)">
+        <button id="fetchCommitsBtn" style="flex: 0 0 auto;">불러오기</button>
+    </div>
+    <div id="githubError" style="color:#E64848; font-size:13px; display:none; margin-top:6px;"></div>
+    <ul id="commitList" style="list-style:none; padding:0; margin:10px 0 0;"></ul>
+</section>
+
+<section>
+    <h2>캘린더</h2>
+    <div id="calendarHeader">
+        <button class="secondary" id="calPrevBtn">◀</button>
+        <span id="calLabel"></span>
+        <button class="secondary" id="calNextBtn">▶</button>
+    </div>
+    <div id="calendarGrid"></div>
+    <div class="catCounts" id="catCounts"></div>
+</section>
+
+<section>
+    <h2>타임라인</h2>
+    <input type="text" id="timelineSearch" placeholder="🔍 기록 검색 (내용·분류)">
+    <div id="filterBar" style="display:none; margin-bottom:8px;">
+        <button class="secondary" id="clearFilterBtn">전체보기</button>
+    </div>
+    <div id="emptyState" class="empty">아직 기록이 없어요. 위에서 첫 기록을 남겨보세요.</div>
+    <ul id="timeline"></ul>
+</section>
+
+<section>
+    <h2>포트폴리오 초안 생성</h2>
+    <button id="genBtn" disabled>지금까지 기록으로 초안 만들기</button>
+    <div id="loading">생성 중...</div>
+    <div id="error"></div>
+    <div id="resultBox">
+        <textarea id="resultEdit" style="min-height:200px;"></textarea>
+        <button id="savePortfolioBtn">이 내용으로 저장</button>
+        <button class="secondary" id="downloadPortfolioBtn">⬇ 다운로드</button>
+        <span id="saveConfirm">저장했어요 ✓ <a href="portfolios.html">모아보기에서 확인 →</a></span>
+    </div>
+
+    <hr style="border:none; border-top:1px solid var(--border); margin:18px 0;">
+
+    <h2 id="uploadTitle" style="margin-top:0;">결과물 업로드</h2>
+    <div class="hint">포트폴리오와 관련된 파일·링크를 같이 남겨두면 모아보기 페이지에서 함께 볼 수 있어요.</div>
+    <label for="resultFiles">결과물 파일 선택</label>
+    <input type="file" id="resultFiles" multiple>
+    <div class="hint">파일은 이 브라우저에만 저장됩니다. 파일당 최대 10MB까지 업로드할 수 있어요.</div>
+    <div class="row">
+        <input type="text" id="resultLinkTitle" placeholder="제목 (예: 배포 URL)">
+        <input type="text" id="resultLinkUrl" placeholder="링크 또는 텍스트">
+        <button id="addLinkBtn" style="flex: 0 0 auto;">추가</button>
+    </div>
+    <div id="uploadError" role="alert" style="color:#E64848; font-size:13px; margin-top:8px;"></div>
+    <ul id="uploadedFiles" style="list-style:none; padding:0; margin:10px 0 0;"></ul>
+</section>
+
+</div>
+
+<script>
+    // ── Supabase ─────────────────────────────
+    const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const CUSTOM_CATEGORIES_KEY = 'customCategories';
+    const CURRENT_PROJECT_KEY = 'currentProjectId';
+
+    const BASE_CATEGORIES = ['개발', '기획/문서', '협업/회의', '학습', '문제해결', '리더십'];
+
+    const JOB_GROUPS = {
+        '백엔드 개발자': 'dev',
+        '프론트엔드 개발자': 'dev',
+        '데이터 분석가/사이언티스트': 'data',
+        'PM/기획자': 'pm',
+        '디자이너': 'design',
+        '마케터': 'marketing',
+    };
+
+    const PLACEHOLDER_SETS = {
+        default: {
+            '개발': 'API 연동 코드를 처음부터 짜봤다\n버그를 3시간 동안 추적해서 해결했다\n리팩토링해서 코드가 더 깔끔해졌다',
+            '기획/문서': '팀 PRD 초안을 작성했다\n요구사항을 우선순위별로 정리했다\n발표자료 스토리라인을 짰다',
+            '협업/회의': '팀원 의견 차이를 조율해서 합의를 이끌어냈다\n스탠드업 미팅에서 진행상황을 공유했다\n다른 팀원 코드리뷰를 도와줬다',
+            '학습': 'RAG 개념을 처음 배우고 직접 구현해봤다\n새로운 라이브러리 문서를 읽고 적용했다\n모르는 개념을 질문해서 이해했다',
+            '문제해결': '배포가 안 되는 원인을 끝까지 추적해서 해결했다\n예상 못한 엣지케이스를 발견하고 수정했다\n막힌 부분을 다른 방법으로 우회해서 풀었다',
+            '리더십': '팀 역할 분담을 주도적으로 제안했다\n의견이 갈릴 때 방향을 정리해서 이끌었다\n일정이 밀리는 팀원을 도와 마감을 맞췄다',
+        },
+        dev: {
+            '개발': 'API 엔드포인트를 새로 설계하고 구현했다\n데이터베이스 쿼리 성능을 개선했다\nPR을 올리고 코드리뷰 피드백을 반영했다',
+            '기획/문서': '기능 명세서를 작성해서 팀과 공유했다\nAPI 문서를 최신 상태로 업데이트했다\n기술적 트레이드오프를 정리해서 제안했다',
+            '협업/회의': '백엔드-프론트엔드 인터페이스를 함께 정의했다\n스탠드업에서 블로커를 공유하고 도움을 받았다\n다른 개발자의 PR을 리뷰해줬다',
+            '학습': '새로운 프레임워크 공식문서를 읽고 예제를 따라해봤다\n테스트 코드 작성법을 배워서 적용했다\n에러 로그를 분석하는 방법을 익혔다',
+            '문제해결': '메모리 누수의 원인을 프로파일링으로 찾아냈다\n동시성 버그를 재현해서 수정했다\n배포 실패 원인을 로그로 추적해 해결했다',
+            '리더십': '기술 스택 선택을 주도적으로 제안하고 설득했다\n주니어 개발자의 코드 작성을 도와줬다\n일정이 밀린 부분을 파악해 우선순위를 재조정했다',
+        },
+        data: {
+            '개발': '데이터 파이프라인 스크립트를 작성했다\n모델 학습 코드를 리팩토링했다\n대시보드에 새 지표를 추가했다',
+            '기획/문서': '분석 목적과 가설을 문서로 정리했다\n지표 정의서를 작성해서 팀에 공유했다\n분석 결과 보고서 초안을 만들었다',
+            '협업/회의': '현업 팀과 요구사항을 조율했다\n분석 결과를 발표하고 질문에 답했다\n동료의 분석 방법론을 리뷰해줬다',
+            '학습': '새로운 통계 기법을 공부하고 적용해봤다\nSQL 최적화 방법을 배웠다\n논문을 읽고 우리 데이터에 적용 가능한지 검토했다',
+            '문제해결': '데이터 이상치의 원인을 끝까지 추적했다\n모델 성능이 떨어진 원인을 분석해 수정했다\n전처리 로직의 버그를 찾아 고쳤다',
+            '리더십': '분석 방향을 팀에 제안하고 합의를 이끌었다\n데이터 품질 기준을 새로 세웠다\n동료의 분석 작업을 도와 마감을 맞췄다',
+        },
+        pm: {
+            '개발': '직접 프로토타입을 코드로 만들어봤다\n노코드 툴로 MVP를 구현했다\n간단한 자동화 스크립트를 짰다',
+            '기획/문서': 'PRD를 작성해서 팀과 방향을 맞췄다\n우선순위를 정리한 로드맵을 만들었다\n사용자 시나리오를 문서화했다',
+            '협업/회의': '이해관계자 의견을 조율해서 합의를 이끌어냈다\n스프린트 회고를 진행했다\n디자이너·개발자와 요구사항을 맞췄다',
+            '학습': '사용자 인터뷰 기법을 배우고 적용했다\n경쟁 서비스를 분석해봤다\n새로운 기획 프레임워크를 공부했다',
+            '문제해결': '사용자 이탈의 원인을 데이터로 찾아냈다\n일정이 밀리는 원인을 파악해 재조정했다\n애매했던 요구사항을 명확하게 재정의했다',
+            '리더십': '팀의 우선순위를 주도적으로 제안했다\n의견 충돌을 조율해서 방향을 정리했다\n팀원들의 작업을 조율해 마감을 맞췄다',
+        },
+        design: {
+            '개발': '간단한 인터랙션을 코드로 프로토타이핑했다\n디자인 시스템 컴포넌트를 정리했다\nHTML/CSS로 시안을 직접 구현해봤다',
+            '기획/문서': '디자인 가이드 문서를 작성했다\n사용자 플로우를 와이어프레임으로 정리했다\n디자인 의도를 정리해서 팀에 공유했다',
+            '협업/회의': '개발자와 구현 가능성을 논의했다\n디자인 리뷰에서 피드백을 주고받았다\nPM과 우선순위를 조율했다',
+            '학습': '새로운 디자인 툴 기능을 익혔다\n타 서비스의 UX 패턴을 분석했다\n접근성 가이드라인을 공부했다',
+            '문제해결': '사용성 테스트에서 발견된 문제를 개선했다\n디자인과 개발 간 불일치를 찾아 수정했다\n복잡했던 플로우를 단순화했다',
+            '리더십': '디자인 방향을 제안하고 설득했다\n주니어 디자이너의 작업을 리뷰해줬다\n일정에 맞춰 작업을 조율했다',
+        },
+        marketing: {
+            '개발': '간단한 랜딩페이지를 직접 만들어봤다\n마케팅 자동화 스크립트를 설정했다\n데이터 트래킹 코드를 심었다',
+            '기획/문서': '캠페인 기획안을 작성했다\n타겟 페르소나를 문서로 정리했다\n콘텐츠 캘린더를 만들었다',
+            '협업/회의': '디자이너와 캠페인 소재를 논의했다\n팀 회의에서 성과를 공유했다\n다른 팀과 협업 캠페인을 조율했다',
+            '학습': '새로운 광고 플랫폼 기능을 공부했다\n경쟁사 마케팅 전략을 분석했다\n카피라이팅 기법을 배웠다',
+            '문제해결': '전환율이 낮은 원인을 데이터로 분석했다\n캠페인 예산 초과 원인을 찾아 조정했다\nA/B 테스트로 문제를 검증하고 개선했다',
+            '리더십': '캠페인 방향을 제안하고 팀을 설득했다\n일정이 밀리는 작업을 조율해 맞췄다\n팀원의 작업을 리뷰하고 피드백을 줬다',
+        },
+    };
+
+    const GENERIC_PLACEHOLDER = '오늘 있었던 일을 3줄 정도로 적어보세요\n구체적인 상황과 결과를 남기면 나중에 더 도움이 돼요\n짧아도 괜찮아요';
+
+    function getPlaceholder(category) {
+        const groupKey = (profileCache && JOB_GROUPS[profileCache.job]) || 'default';
+        const set = PLACEHOLDER_SETS[groupKey] || PLACEHOLDER_SETS.default;
+        return set[category] || PLACEHOLDER_SETS.default[category] || GENERIC_PLACEHOLDER;
+    }
+
+    const timelineEl = document.getElementById('timeline');
+    const emptyStateEl = document.getElementById('emptyState');
+    const genBtn = document.getElementById('genBtn');
+    const resultBoxEl = document.getElementById('resultBox');
+    const resultEditEl = document.getElementById('resultEdit');
+    const saveConfirmEl = document.getElementById('saveConfirm');
+    const errorEl = document.getElementById('error');
+    const loadingEl = document.getElementById('loading');
+    const filterBarEl = document.getElementById('filterBar');
+    const logInputEl = document.getElementById('logInput');
+    const logDateInputEl = document.getElementById('logDateInput');
+    const projectSelectEl = document.getElementById('projectSelect');
+    const timelineSearchEl = document.getElementById('timelineSearch');
+    const jobRecommendationTextEl = document.getElementById('jobRecommendationText');
+
+    let currentUser = null;
+    let profileCache = null;
+    let projectsCache = [];
+    let logsCache = [];           // 현재 프로젝트의 기록
+    let selectedDate = null;      // 캘린더에서 선택된 날짜(YYYY-MM-DD) 필터
+    let currentProjectId = null;  // 현재 선택된 프로젝트 id (uuid)
+    let selectedCategory = null;  // 현재 선택된 분류
+    let calYear, calMonth;        // 캘린더에 보이는 연/월 (0-indexed 월)
+    let searchTerm = '';          // 타임라인 검색어
+
+    // ── 유틸 ─────────────────────────────
+    function todayStr() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.innerText = str;
+        return div.innerHTML;
+    }
+
+    function downloadText(filename, text) {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ── 인증 (익명 로그인, 세션은 브라우저에 자동 유지) ─────────────────────────────
+    async function ensureAuth() {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) return session.user;
+        const { data, error } = await sb.auth.signInAnonymously();
+        if (error) throw error;
+        return data.user;
+    }
+
+    // ── 프로필 ─────────────────────────────
+    async function fetchProfile() {
+        const { data, error } = await sb.from('profiles').select('*').maybeSingle();
+        if (error || !data) return null;
+        return { job: data.job, year: data.year };
+    }
+
+    async function saveProfileRow(profile) {
+        await sb.from('profiles').upsert({
+            user_id: currentUser.id, job: profile.job, year: profile.year, updated_at: new Date().toISOString()
+        });
+    }
+
+    async function loadJobRecommendation() {
+        const job = profileCache?.job || '희망 직무';
+        const stage = profileCache?.year || '현재 단계';
+        const stageContext = {
+            '1학년': '기초를 다지는 단계이므로 작은 규모의 완성도 있는 결과물을 만들며',
+            '2학년': '관심 분야를 좁혀가는 단계이므로 여러 방법을 비교해보며',
+            '3학년': '실전 경험을 쌓는 단계이므로 팀 프로젝트와 실제 사용자 피드백을 반영하며',
+            '4학년': '취업을 준비하는 단계이므로 채용 담당자가 이해하기 쉬운 결과와 성과를 남기며',
+            '휴학중': '집중해서 경험을 쌓을 수 있는 시기이므로 하나의 프로젝트를 처음부터 끝까지 완성하며',
+            '취업준비생': '취업을 준비하는 단계이므로 직무 역량과 성과가 선명하게 드러나는 사례를 만들며',
+            '직장인': '실무 경험을 확장하는 단계이므로 업무에서 발견한 문제를 개선하는 프로젝트를 진행하며'
+        }[stage] || `${stage} 상황에 맞춰`;
+        const focus = {
+            '프론트엔드 개발자': ['사용자 문제를 해결하는 웹 서비스를 주제로 해커톤에 참여하고, 사용자 피드백을 반영해 배포까지 완료하기', '클론코딩으로 쌓은 사용자 요구 이해도를 살려 사용자 경험을 코드로 구현한 과정'],
+            '백엔드 개발자': ['실시간 서비스나 데이터 처리 API를 주제로 개발 해커톤에 참여하고, 부하 테스트와 장애 대응 결과까지 기록하기', '서비스 문제를 끝까지 추적하고 해결한 과정을 수치와 로그로 보여주기'],
+            '데이터 분석가/사이언티스트': ['공공데이터·캐글 공모전에 참여해 가설 설정부터 분석, 시각화, 결과 제안까지 완성하고 분석 리포트 제출하기', '복잡한 데이터를 이해하기 쉬운 인사이트로 바꿔 의사결정에 연결한 과정'],
+            'PM/기획자': ['사용자 불편을 해결하는 서비스 기획 공모전에 참여해 인터뷰, 문제 정의, 화면 설계, 지표까지 기획안으로 제출하기', '다양한 의견을 조율해 실행 가능한 방향으로 구체화한 과정'],
+            '디자이너': ['UX/UI 디자인 공모전이나 해커톤에 참여해 사용자 조사, 프로토타입 제작, 사용성 테스트, 개선 결과까지 정리하기', '사용자 관점에서 문제를 정의하고 디자인 결정의 근거를 설명하는 능력'],
+            '마케터': ['실제 브랜드나 가상의 제품을 주제로 마케팅 공모전에 참여해 캠페인 기획, 콘텐츠 제작, 성과 지표 설정까지 완성하기', '타깃 사용자를 이해하고 콘텐츠를 성과 지표로 연결한 과정']
+        }[job] || ['희망 직무와 연결되는 프로젝트를 진행하고 과정과 결과를 하나의 사례로 정리하기', '문제 해결력 · 실행력 · 성장 가능성'];
+        const strengths = {
+            '프론트엔드 개발자': '사용자 중심 사고 · UX 구현력 · 피드백 기반 개선',
+            '백엔드 개발자': '문제 해결력 · API 설계 역량 · 안정성 검증',
+            '데이터 분석가/사이언티스트': '데이터 해석력 · 가설 수립 · 인사이트 도출',
+            'PM/기획자': '사용자 중심 기획 · 문제 정의 · 이해관계자 조율',
+            '디자이너': '사용자 공감 능력 · UX 설계 · 디자인 근거 제시',
+            '마케터': '타깃 분석력 · 콘텐츠 기획력 · 성과 지표 중심 사고'
+        }[job] || focus[1];
+        const activities = {
+            '프론트엔드 개발자': '사용자 문제 해결 웹 서비스를 주제로 해커톤에 참여하고, 피드백을 반영해 배포하기',
+            '백엔드 개발자': '실시간 서비스나 데이터 처리 API를 주제로 개발 해커톤에 참여하고, 부하 테스트 결과 기록하기',
+            '데이터 분석가/사이언티스트': '공공데이터·캐글 공모전에 참여해 분석 리포트를 제출하고 결과 발표하기',
+            'PM/기획자': '서비스 기획 공모전에 참여해 사용자 인터뷰부터 문제 정의와 지표 설계까지 기획안으로 제출하기',
+            '디자이너': 'UX/UI 공모전이나 해커톤에 참여해 사용자 조사, 프로토타입, 사용성 테스트 결과 정리하기',
+            '마케터': '마케팅 공모전에 참여해 캠페인 기획, 콘텐츠 제작, 성과 지표 설정까지 완성하기'
+        }[job] || focus[0];
+        const fallback = `- 활동 추천: ${stageContext} ${activities}.\n- 나만의 강점 추천: ${strengths}`;
+        jobRecommendationTextEl.textContent = fallback;
+
+        try {
+            const { data: portfolios } = await sb.from('portfolios')
+                .select('project_name, content, created_at')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false })
+                .limit(3);
+            if (!portfolios?.length) return;
+
+            const previous = portfolios.map(p => `[${p.project_name}]\n${p.content}`).join('\n\n').slice(0, 9000);
+            const res = await fetch('/api/portfolio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: `희망 직무: ${job}\n학년/상태: ${stage}\n\n이 사용자가 이전에 만든 포트폴리오입니다:\n${previous}\n\n이전 포트폴리오의 경험과 강점을 반드시 고려해 아래 형식으로 맞춤 추천해주세요. 없는 경험이나 수치는 만들지 마세요. 제목 없이 아래 두 줄만 작성하세요.\n- 활동 추천: (앞으로 시도하면 좋을 활동)\n- 나만의 강점 추천: (이전 포트폴리오에서 드러난 강점 키워드 3~5개를 ' · '로 연결)` })
+            });
+            const data = await res.json();
+            if (res.ok && data.reply) jobRecommendationTextEl.textContent = data.reply.trim().replace(/^🎯[^\n]*\n?/, '');
+        } catch (e) {
+            // API를 사용할 수 없는 환경에서는 위의 기본 추천을 유지합니다.
+        }
+    }
+
+    function renderProfileBar() {
+        const bar = document.getElementById('profileBar');
+        if (!profileCache) { bar.innerHTML = ''; return; }
+
+        bar.innerHTML = `학년/상태: <b>${escapeHtml(profileCache.year || '-')}</b> · 희망 직무: <b>${escapeHtml(profileCache.job || '-')}</b> &nbsp;
+            <button class="link" id="editProfileBtn">수정</button>`;
+        document.getElementById('editProfileBtn').addEventListener('click', () => {
+            document.getElementById('profileEditForm').classList.toggle('open');
+        });
+    }
+
+    document.getElementById('jobSelect').addEventListener('change', (e) => {
+        document.getElementById('jobCustom').style.display = (e.target.value === '기타') ? 'block' : 'none';
+    });
+
+    document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+        const jobSelect = document.getElementById('jobSelect').value;
+        const jobCustom = document.getElementById('jobCustom').value.trim();
+        const job = jobSelect === '기타' ? (jobCustom || '기타') : jobSelect;
+        const year = document.getElementById('yearSelect').value;
+
+        if (!job || !year) return;
+
+        await saveProfileRow({ job, year });
+        profileCache = { job, year };
+        renderProfileBar();
+        await loadJobRecommendation();
+        document.getElementById('profileEditForm').classList.remove('open');
+        if (selectedCategory) logInputEl.placeholder = getPlaceholder(selectedCategory);
+    });
+
+    // ── 온보딩 ─────────────────────────────
+    document.getElementById('onbJobSelect').addEventListener('change', (e) => {
+        document.getElementById('onbJobCustom').style.display = (e.target.value === '기타') ? 'block' : 'none';
+    });
+
+    document.getElementById('onbStartBtn').addEventListener('click', async () => {
+        const jobSelect = document.getElementById('onbJobSelect').value;
+        const jobCustom = document.getElementById('onbJobCustom').value.trim();
+        const job = jobSelect === '기타' ? (jobCustom || '기타') : jobSelect;
+        const year = document.getElementById('onbYearSelect').value;
+        const errEl = document.getElementById('onbError');
+
+        if (!job || !year) {
+            errEl.textContent = '희망 직무와 학년/상태를 모두 선택해주세요.';
+            errEl.style.display = 'block';
+            return;
+        }
+        errEl.style.display = 'none';
+        await saveProfileRow({ job, year });
+        profileCache = { job, year };
+        await enterMainApp();
+    });
+
+    async function enterMainApp() {
+        document.getElementById('onboardingScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        renderProfileBar();
+        await loadJobRecommendation();
+        renderCategoryButtons();
+        await bootMainApp();
+    }
+
+    // ── 프로젝트 ─────────────────────────────
+    async function fetchProjects() {
+        const { data, error } = await sb.from('projects').select('*').order('created_at', { ascending: true });
+        if (error) { console.error(error); return []; }
+        return data;
+    }
+
+    function renderProjectSelect() {
+        projectSelectEl.innerHTML = '';
+        projectsCache.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (p.id === currentProjectId) opt.selected = true;
+            projectSelectEl.appendChild(opt);
+        });
+    }
+
+    projectSelectEl.addEventListener('change', async () => {
+        currentProjectId = projectSelectEl.value;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+        selectedDate = null;
+        await renderAll();
+    });
+
+    // ── GitHub 커밋 자동 가져오기 (Tool 호출) ─────────────────────────────
+    const GITHUB_REPO_KEY = 'githubRepo';
+    const githubRepoInputEl = document.getElementById('githubRepoInput');
+    githubRepoInputEl.value = localStorage.getItem(GITHUB_REPO_KEY) || '';
+
+    document.getElementById('fetchCommitsBtn').addEventListener('click', async () => {
+        const repo = githubRepoInputEl.value.trim();
+        const errEl = document.getElementById('githubError');
+        const listEl = document.getElementById('commitList');
+        errEl.style.display = 'none';
+        listEl.innerHTML = '';
+
+        if (!repo || !repo.includes('/')) {
+            errEl.textContent = 'owner/repo 형식으로 입력해주세요 (예: song-eunji/bigdatacamp2026)';
+            errEl.style.display = 'block';
+            return;
+        }
+        localStorage.setItem(GITHUB_REPO_KEY, repo);
+
+        try {
+            const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=10`);
+            if (!res.ok) {
+                if (res.status === 404) throw new Error('저장소를 찾을 수 없어요 (비공개 저장소는 지원 안 해요).');
+                if (res.status === 403) throw new Error('GitHub API 요청 한도를 초과했어요. 잠시 후 다시 시도해주세요.');
+                throw new Error(`GitHub API 요청 실패 (status ${res.status})`);
+            }
+            const commits = await res.json();
+            if (!Array.isArray(commits) || commits.length === 0) {
+                listEl.innerHTML = '<li class="empty">커밋이 없어요.</li>';
+                return;
+            }
+
+            commits.forEach(c => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding:10px 0; border-bottom:1px dashed var(--border);';
+                const date = (c.commit?.author?.date || '').slice(0, 10);
+                const message = (c.commit?.message || '').split('\n')[0];
+
+                li.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="log-date">${escapeHtml(date)}</span>
+                        <span style="flex:1; font-size:13px;">${escapeHtml(message)}</span>
+                        <button class="secondary" type="button">+ 기록에 추가</button>
+                    </div>
+                `;
+                li.querySelector('button').addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    btn.disabled = true;
+                    btn.textContent = '추가 중...';
+                    const { error } = await sb.from('logs').insert({
+                        user_id: currentUser.id, project_id: currentProjectId, date,
+                        text: `[GitHub] ${message}`.slice(0, 500), category: '개발'
+                    });
+                    if (error) {
+                        console.error(error);
+                        btn.textContent = '실패';
+                        return;
+                    }
+                    btn.textContent = '✓ 추가됨';
+                    await renderAll();
+                });
+                listEl.appendChild(li);
+            });
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.style.display = 'block';
+        }
+    });
+
+    document.getElementById('addProjectBtn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('newProjectName');
+        const name = nameInput.value.trim();
+        if (!name) return;
+
+        const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name }).select().single();
+        if (error) { console.error(error); return; }
+
+        projectsCache.push(data);
+        currentProjectId = data.id;
+        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+        nameInput.value = '';
+        selectedDate = null;
+        renderProjectSelect();
+        await renderAll();
+    });
+
+    // ── 분류 (버튼형 + 커스텀 추가, 로컬 보관) ─────────────────────────────
+    function loadCustomCategories() {
+        try { return JSON.parse(localStorage.getItem(CUSTOM_CATEGORIES_KEY) || '[]'); }
+        catch (e) { return []; }
+    }
+
+    function saveCustomCategories(list) {
+        localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(list));
+    }
+
+    function allCategories() {
+        return [...BASE_CATEGORIES, ...loadCustomCategories()];
+    }
+
+    function renderCategoryButtons() {
+        const container = document.getElementById('categoryButtons');
+        container.innerHTML = '';
+
+        allCategories().forEach(cat => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cat-btn' + (cat === selectedCategory ? ' active' : '');
+            btn.textContent = cat;
+            btn.addEventListener('click', () => {
+                selectedCategory = cat;
+                logInputEl.placeholder = getPlaceholder(cat);
+                renderCategoryButtons();
+            });
+            container.appendChild(btn);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'cat-btn cat-btn-add';
+        addBtn.textContent = '+ 추가';
+        addBtn.addEventListener('click', () => {
+            const name = window.prompt('새 분류 이름을 입력하세요 (예: 발표, 네트워킹)');
+            const trimmed = (name || '').trim();
+            if (!trimmed) return;
+
+            if (!allCategories().includes(trimmed)) {
+                const customs = loadCustomCategories();
+                customs.push(trimmed);
+                saveCustomCategories(customs);
+            }
+            selectedCategory = trimmed;
+            logInputEl.placeholder = getPlaceholder(trimmed);
+            renderCategoryButtons();
+        });
+        container.appendChild(addBtn);
+    }
+
+    // ── 로그 ─────────────────────────────
+    async function fetchLogsForProject(projectId) {
+        const { data, error } = await sb.from('logs').select('*').eq('project_id', projectId).order('date', { ascending: true });
+        if (error) { console.error(error); return []; }
+        return data;
+    }
+
+    async function fetchAllLogDates() {
+        const { data, error } = await sb.from('logs').select('date');
+        if (error) { console.error(error); return []; }
+        return data.map(d => d.date);
+    }
+
+    async function deleteLog(id) {
+        await sb.from('logs').delete().eq('id', id);
+        await renderAll();
+    }
+
+    async function updateLog(id, text, category) {
+        await sb.from('logs').update({ text, category }).eq('id', id);
+        await renderAll();
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        const text = logInputEl.value.trim();
+        if (!text) return; // 공백만 있을 때 저장 방지
+
+        const date = logDateInputEl.value || todayStr();
+        const { error } = await sb.from('logs').insert({
+            user_id: currentUser.id, project_id: currentProjectId, date,
+            text: text.slice(0, 500), category: selectedCategory
+        });
+        if (error) { console.error(error); return; }
+
+        logInputEl.value = '';
+        logDateInputEl.value = todayStr(); // 다음 입력은 기본값 오늘로 리셋
+        await renderAll();
+    });
+
+    // ── 연속 기록 스트릭 ─────────────────────────────
+    async function updateStreak() {
+        const dateSet = new Set(await fetchAllLogDates());
+        let streak = 0;
+        const cursor = new Date();
+        if (!dateSet.has(cursor.toISOString().slice(0, 10))) {
+            cursor.setDate(cursor.getDate() - 1);
+        }
+        while (dateSet.has(cursor.toISOString().slice(0, 10))) {
+            streak++;
+            cursor.setDate(cursor.getDate() - 1);
+        }
+        const badge = document.getElementById('streakBadge');
+        if (streak >= 2) {
+            badge.textContent = `🔥 ${streak}일 연속 기록 중`;
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // ── 캘린더 (월 이동 + 날짜 클릭 시 기록 날짜도 채움) ─────────────────────────────
+    function renderCalendar() {
+        const logDates = new Set(logsCache.map(l => l.date));
+
+        const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=일
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+        document.getElementById('calLabel').textContent = `${calYear}년 ${calMonth + 1}월`;
+
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        ['일', '월', '화', '수', '목', '금', '토'].forEach(w => {
+            const el = document.createElement('div');
+            el.className = 'cal-weekday';
+            el.textContent = w;
+            grid.appendChild(el);
+        });
+
+        for (let i = 0; i < firstDay; i++) {
+            const el = document.createElement('div');
+            el.className = 'cal-day empty';
+            grid.appendChild(el);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const el = document.createElement('div');
+            el.className = 'cal-day';
+            if (logDates.has(dateStr)) el.classList.add('has-log');
+            if (dateStr === todayStr()) el.classList.add('today');
+            if (dateStr === selectedDate) el.classList.add('selected');
+            el.textContent = d;
+            el.addEventListener('click', async () => {
+                if (dateStr <= todayStr()) logDateInputEl.value = dateStr; // 지난 날짜 클릭 시 기록 입력 날짜도 맞춰줌
+                selectedDate = (selectedDate === dateStr) ? null : dateStr;
+                renderCalendarAndTimelineOnly();
+            });
+            grid.appendChild(el);
+        }
+
+        const counts = {};
+        logsCache.forEach(l => { counts[l.category || '기타'] = (counts[l.category || '기타'] || 0) + 1; });
+        const countStr = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ');
+        document.getElementById('catCounts').textContent = countStr ? `분류별 기록: ${countStr}` : '';
+    }
+
+    function renderCalendarAndTimelineOnly() {
+        renderCalendar();
+        renderTimeline();
+    }
+
+    document.getElementById('calPrevBtn').addEventListener('click', () => {
+        calMonth--;
+        if (calMonth < 0) { calMonth = 11; calYear--; }
+        renderCalendar();
+    });
+
+    document.getElementById('calNextBtn').addEventListener('click', () => {
+        calMonth++;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        renderCalendar();
+    });
+
+    // ── 타임라인 (토글 + 수정 + 검색) ─────────────────────────────
+    timelineSearchEl.addEventListener('input', () => {
+        searchTerm = timelineSearchEl.value.trim();
+        renderTimeline();
+    });
+
+    function renderTimeline() {
+        const allLogs = logsCache;
+        let logs = selectedDate ? allLogs.filter(l => l.date === selectedDate) : allLogs;
+
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase();
+            logs = logs.filter(l => l.text.toLowerCase().includes(q) || (l.category || '').toLowerCase().includes(q));
+        }
+
+        filterBarEl.style.display = selectedDate ? 'block' : 'none';
+        timelineEl.innerHTML = '';
+
+        if (allLogs.length === 0) {
+            emptyStateEl.textContent = '아직 기록이 없어요. 위에서 첫 기록을 남겨보세요.';
+            emptyStateEl.style.display = 'block';
+            genBtn.disabled = true;
+        } else if (logs.length === 0) {
+            emptyStateEl.textContent = searchTerm ? '검색 결과가 없어요.' : '이 날짜엔 기록이 없어요.';
+            emptyStateEl.style.display = 'block';
+            genBtn.disabled = false;
+        } else {
+            emptyStateEl.style.display = 'none';
+            genBtn.disabled = false;
+        }
+
+        logs.slice().reverse().forEach(log => {
+            const li = document.createElement('li');
+            li.className = 'log-item';
+            const firstLine = log.text.split('\n')[0];
+            const preview = firstLine.length > 24 ? firstLine.slice(0, 24) + '…' : firstLine;
+            const catOptions = allCategories().map(c =>
+                `<option value="${escapeHtml(c)}" ${c === log.category ? 'selected' : ''}>${escapeHtml(c)}</option>`
+            ).join('');
+
+            li.innerHTML = `
+                <div class="log-summary">
+                    <span class="log-date">${log.date}<span class="tag">${escapeHtml(log.category || '기타')}</span></span>
+                    <span class="log-preview">${escapeHtml(preview)}</span>
+                    <span class="chevron">▸</span>
+                </div>
+                <div class="log-detail">
+                    <div class="log-text">${escapeHtml(log.text)}</div>
+                    <button class="secondary" data-action="edit">수정</button>
+                    <button class="secondary" data-action="delete">삭제</button>
+                </div>
+                <div class="log-edit">
+                    <textarea>${escapeHtml(log.text)}</textarea>
+                    <select>${catOptions}</select>
+                    <button class="secondary" data-action="save">저장</button>
+                    <button class="secondary" data-action="cancel">취소</button>
+                </div>
+            `;
+
+            const detailEl = li.querySelector('.log-detail');
+            const editEl = li.querySelector('.log-edit');
+
+            li.querySelector('.log-summary').addEventListener('click', () => li.classList.toggle('open'));
+
+            li.querySelector('[data-action="edit"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                detailEl.style.display = 'none';
+                editEl.style.display = 'block';
+            });
+            li.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteLog(log.id);
+            });
+            li.querySelector('[data-action="cancel"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                editEl.style.display = 'none';
+                detailEl.style.display = 'block';
+            });
+            li.querySelector('[data-action="save"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const newText = editEl.querySelector('textarea').value.trim();
+                const newCategory = editEl.querySelector('select').value;
+                if (!newText) return;
+                updateLog(log.id, newText.slice(0, 500), newCategory);
+            });
+
+            timelineEl.appendChild(li);
+        });
+    }
+
+    document.getElementById('clearFilterBtn').addEventListener('click', () => {
+        selectedDate = null;
+        renderCalendarAndTimelineOnly();
+    });
+
+    async function renderAll() {
+        logsCache = await fetchLogsForProject(currentProjectId);
+        renderCalendar();
+        renderTimeline();
+        await updateStreak();
+        if (window.refreshUploads) window.refreshUploads();
+    }
+
+    // ── 포트폴리오 생성 · 저장 (모아보기는 portfolios.html) ─────────────────────────────
+    genBtn.addEventListener('click', async () => {
+        const logs = logsCache;
+        if (logs.length === 0) return;
+
+        errorEl.style.display = 'none';
+        resultBoxEl.style.display = 'none';
+        saveConfirmEl.style.display = 'none';
+        loadingEl.style.display = 'block';
+        genBtn.disabled = true;
+
+        const project = projectsCache.find(p => p.id === currentProjectId);
+        const logText = logs.map(l => `[${l.date}][${l.category || '기타'}] ${l.text}`).join('\n');
+
+        let profileLine = '';
+        if (profileCache && profileCache.job) {
+            profileLine = `- 지원 관점: ${profileCache.job} (${profileCache.year || '미상'})\n`;
+        }
+
+        const prompt = `아래는 "${project ? project.name : '프로젝트'}" 기간 동안 매일 남긴 짧은 활동 기록입니다. 각 줄은 [날짜][분류] 텍스트 형식입니다.
+
+이 기록을 바탕으로, 실제 채용 담당자가 읽는 포트폴리오처럼 **STAR 기법(상황-과제-행동-결과)**과 **정량적 성과 중심(XYZ 형식: "~함으로써 ~를 ~만큼 달성/개선")**으로 정리해주세요. 막연한 나열이 아니라 "무엇을 어떻게 해결했는지"가 드러나야 합니다.
+
+반드시 아래 마크다운 형식과 순서를 그대로 지켜 작성하세요. 제목을 바꾸거나 섹션을 생략하지 마세요.
+
+# ${project ? project.name : '프로젝트'} 포트폴리오
+
+## 한 줄 요약
+(무엇을 해서 어떤 결과를 냈는지 1~2문장. XYZ 형식 지향)
+
+## 프로젝트 개요
+- 기간: (기록 날짜 범위, 예: 07/10~07/13)
+${profileLine}- 활동 분류: (기록에 나온 분류 요약)
+
+## 주요 활동
+학습·문제해결·협업/회의 등 활동 분류별로 나누지 마세요. 전체 기록을 하나의 프로젝트 흐름으로 합쳐 문제와 목표, 해결 과정이 드러나는 1~2개의 활동으로 정리하고, 각 활동은 반드시 아래 STAR 구조로 작성하세요.
+각 항목을 "### 소제목"과 아래 4줄로:
+- 상황(Situation):
+- 과제(Task):
+- 행동(Action):
+- 결과(Result): (수치화 가능하면 수치로, 아니면 구체적인 정성적 결과로)
+
+## 핵심 성과 요약
+(불릿 3~5개, "~함으로써 ~를 ~만큼" 형태 지향)
+규칙:
+- 항목마다 근거가 된 날짜를 괄호로 표시 (예: (07/13))
+- 기록에 없는 사실·수치는 절대 만들어내지 말 것 — 없으면 정성적으로 서술
+- 한국어로 작성, 전체 1200자 내외
+
+기록:
+${logText}`;
+
+        try {
+            const res = await fetch('/api/portfolio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || `요청 실패 (status ${res.status})`);
+            }
+
+            let draft = data.reply;
+            if (!draft) throw new Error('응답에서 결과를 찾지 못했어요.');
+
+            const uploads = window.getCurrentProjectUploads ? await window.getCurrentProjectUploads() : [];
+            if (uploads.length > 0) {
+                const resultsSection = uploads.map(u =>
+                    u.kind === 'link' ? `- [${u.name}](${u.url})` : `- ${u.name} (첨부 파일)`
+                ).join('\n');
+                draft += `\n\n## 🔗 결과물\n${resultsSection}`;
+            }
+
+            resultEditEl.value = draft;
+            resultEditEl.dataset.projectId = currentProjectId;
+            resultEditEl.dataset.projectName = project ? project.name : '프로젝트';
+            resultBoxEl.style.display = 'block';
+        } catch (e) {
+            resultEditEl.value = buildLocalDraft(project, logs);
+            resultEditEl.dataset.projectId = currentProjectId;
+            resultEditEl.dataset.projectName = project ? project.name : '프로젝트';
+            resultBoxEl.style.display = 'block';
+        } finally {
+            loadingEl.style.display = 'none';
+            genBtn.disabled = false;
+        }
+    });
+
+    document.getElementById('savePortfolioBtn').addEventListener('click', async () => {
+        const content = resultEditEl.value.trim();
+        if (!content) return;
+
+        const { error } = await sb.from('portfolios').insert({
+            user_id: currentUser.id,
+            project_id: resultEditEl.dataset.projectId || currentProjectId,
+            project_name: resultEditEl.dataset.projectName || '프로젝트',
+            content,
+        });
+        if (error) { console.error(error); return; }
+        saveConfirmEl.style.display = 'inline';
+    });
+
+    document.getElementById('downloadPortfolioBtn').addEventListener('click', () => {
+        const content = resultEditEl.value.trim();
+        if (!content) return;
+        const projectName = resultEditEl.dataset.projectName || '포트폴리오';
+        downloadText(`${projectName}_포트폴리오.txt`, content);
+    });
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+    }
+
+    function buildLocalDraft(project, logs) {
+        const dates = logs.map(l => l.date).sort();
+        const categories = [...new Set(logs.map(l => l.category || '기타'))].join(', ');
+        const activities = `### 프로젝트 활동 종합\n- 상황(Situation): ${dates[0]}부터 ${dates[dates.length - 1]}까지 프로젝트를 진행하며 여러 과제를 해결해야 했습니다.\n- 과제(Task): 기록된 활동을 바탕으로 프로젝트의 목표를 달성하고 문제를 해결해야 했습니다.\n- 행동(Action): ${logs.map(l => `${l.date} ${l.text}`).join(' / ')}\n- 결과(Result): 프로젝트 진행 과정과 해결 내용을 기록하여 성과를 정리할 근거를 남겼습니다.`;
+        return `# ${project ? project.name : '프로젝트'} 포트폴리오\n\n## 한 줄 요약\n${logs.length}개의 활동을 수행하고 주요 과정과 결과를 정리했습니다.\n\n## 프로젝트 개요\n- 기간: ${dates[0]}~${dates[dates.length - 1]}\n- 지원 관점: ${profileCache?.job || '-'} (${profileCache?.year || '-'})\n- 활동 분류: ${categories}\n\n## 주요 활동\n\n${activities}\n\n## 핵심 성과 요약\n- 프로젝트 전체 활동을 하나의 흐름으로 연결해 문제 해결 과정을 정리함.`;
+    }
+
+    // ── 부트스트랩 ─────────────────────────────
+    async function bootMainApp() {
+        projectsCache = await fetchProjects();
+        if (projectsCache.length === 0) {
+            const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name: '기본 프로젝트' }).select().single();
+            if (!error) projectsCache = [data];
+        }
+
+        const savedId = localStorage.getItem(CURRENT_PROJECT_KEY);
+        currentProjectId = (savedId && projectsCache.find(p => p.id === savedId)) ? savedId : projectsCache[0].id;
+        renderProjectSelect();
+
+        const _today = new Date();
+        calYear = _today.getFullYear();
+        calMonth = _today.getMonth();
+        logDateInputEl.max = todayStr();
+        logDateInputEl.value = todayStr();
+
+        selectedCategory = allCategories()[0];
+        renderCategoryButtons();
+
+        await renderAll();
+    }
+
+    async function init() {
+        currentUser = await ensureAuth();
+        profileCache = await fetchProfile();
+        if (profileCache && profileCache.job && profileCache.year) {
+            await enterMainApp();
+        }
+    }
+
+    init().catch(err => {
+        console.error(err);
+        document.getElementById('onbError').textContent = '초기화 중 오류가 발생했어요. 새로고침해보세요.';
+        document.getElementById('onbError').style.display = 'block';
+    });
+</script>
+
+<script>
+    (() => {
+        const DB_NAME = 'portfolioResults';
+        const STORE_NAME = 'files';
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        const input = document.getElementById('resultFiles');
+        const list = document.getElementById('uploadedFiles');
+        const error = document.getElementById('uploadError');
+        let dbRef = null;
+
+        function openDb() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function allFiles(db) {
+            return new Promise((resolve, reject) => {
+                const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function filesForCurrentProject(db) {
+            const all = await allFiles(db);
+            return all.filter(f => f.projectId === currentProjectId);
+        }
+
+        function addFile(db, file) {
+            return new Promise((resolve, reject) => {
+                const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({
+                    kind: 'file', name: file.name, type: file.type, size: file.size, file,
+                    projectId: currentProjectId, uploadedAt: new Date().toISOString()
+                });
+                request.onsuccess = resolve;
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function addLink(db, title, url) {
+            return new Promise((resolve, reject) => {
+                const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).add({
+                    kind: 'link', name: title, url, projectId: currentProjectId, uploadedAt: new Date().toISOString()
+                });
+                request.onsuccess = resolve;
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function removeFile(db, id) {
+            return new Promise((resolve, reject) => {
+                const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(id);
+                request.onsuccess = resolve;
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function render(files, db) {
+            list.innerHTML = '';
+            files.forEach(item => {
+                const li = document.createElement('li');
+                li.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--border);';
+                const name = document.createElement('span');
+                name.textContent = item.kind === 'link'
+                    ? `${item.name} — ${item.url}`
+                    : `${item.name} (${Math.ceil(item.size / 1024)}KB)`;
+                name.style.flex = '1';
+                const open = document.createElement('button');
+                open.type = 'button';
+                open.className = 'secondary';
+                open.textContent = '열기';
+                open.addEventListener('click', () => {
+                    if (item.kind === 'link') {
+                        if (/^https?:\/\//i.test(item.url)) window.open(item.url, '_blank', 'noopener');
+                        else alert(item.url);
+                    } else {
+                        window.open(URL.createObjectURL(item.file), '_blank', 'noopener');
+                    }
+                });
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'secondary';
+                remove.textContent = '삭제';
+                remove.addEventListener('click', async () => {
+                    await removeFile(db, item.id);
+                    render(await filesForCurrentProject(db), db);
+                });
+                li.append(name, open, remove);
+                list.appendChild(li);
+            });
+        }
+
+        openDb().then(async db => {
+            dbRef = db;
+            render(await filesForCurrentProject(db), db);
+
+            input.addEventListener('change', async () => {
+                error.textContent = '';
+                for (const file of input.files) {
+                    if (file.size > MAX_FILE_SIZE) {
+                        error.textContent = `${file.name}: 10MB를 초과해 업로드할 수 없습니다.`;
+                        continue;
+                    }
+                    await addFile(db, file);
+                }
+                input.value = '';
+                render(await filesForCurrentProject(db), db);
+            });
+
+            document.getElementById('addLinkBtn').addEventListener('click', async () => {
+                const titleEl = document.getElementById('resultLinkTitle');
+                const urlEl = document.getElementById('resultLinkUrl');
+                const title = titleEl.value.trim();
+                const url = urlEl.value.trim();
+                if (!title || !url) return;
+                await addLink(db, title, url);
+                titleEl.value = '';
+                urlEl.value = '';
+                render(await filesForCurrentProject(db), db);
+            });
+        }).catch(() => {
+            error.textContent = '이 브라우저에서는 파일 저장을 사용할 수 없습니다.';
+        });
+
+        window.refreshUploads = async () => {
+            if (!dbRef) return;
+            render(await filesForCurrentProject(dbRef), dbRef);
+        };
+
+        window.getCurrentProjectUploads = async () => {
+            if (!dbRef) return [];
+            return filesForCurrentProject(dbRef);
+        };
+    })();
+</script>
+</body>
+</html>
