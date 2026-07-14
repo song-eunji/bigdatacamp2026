@@ -1,6 +1,6 @@
 # 📓 활동 기록 → 포트폴리오 생성기
 
-매일 3줄씩 활동을 기록하면, 쌓인 기록을 근거로 AI가 STAR/XYZ 형식의 포트폴리오 초안을 만들어주는 서비스입니다.
+매일 조금씩 활동을 기록하면, 쌓인 기록을 근거로 AI가 STAR/XYZ 형식의 포트폴리오 초안을 만들어주는 서비스입니다.
 빅데이터캠프 2026 팀 프로젝트로 제작했습니다.
 
 **배포 링크**: https://bigdatacamp-portfolio.vercel.app
@@ -12,16 +12,18 @@
 ## 핵심 기능
 
 - **온보딩**: 학년/상태, 희망 직무를 입력하면 이후 기록 예시·포트폴리오 방향성 제안이 맞춤으로 바뀜
+- **로그인 없이 바로 시작**: 익명 로그인으로 온보딩만 마치면 바로 사용 가능. 원하면 이메일 회원가입으로 넘어가 이름·프로필 사진을 등록하고 마이페이지에서 활동 통계를 확인할 수 있음
 - **프로젝트별 관리**: 여러 프로젝트(캠프)를 버튼으로 전환하며 기록·캘린더·포트폴리오를 따로 관리
 - **기록 추가**: 분류(개발/기획·문서/협업·회의/학습/문제해결/리더십 + 커스텀 분류 추가·수정·삭제)와 함께 3줄 기록, 지난 날짜 백데이트 가능
 - **캘린더**: 월 이동, 기록 있는 날짜 표시, 날짜 클릭으로 필터·백데이트
 - **연속 기록 스트릭**: 매일 기록을 유도하는 배지
 - **GitHub 커밋 자동 가져오기 (Tool 호출)**: 공개 저장소의 최근 커밋을 불러와 원클릭으로 기록에 추가
 - **Google Calendar 리마인더**: 기간을 설정해 Google Calendar에 매일 알림 추가 (OAuth 불필요)
-- **AI 포트폴리오 생성**: 누적 기록을 STAR(상황-과제-행동-결과)·XYZ(정량적 성과) 형식으로 재구성, 업로드한 결과물(파일·링크)도 함께 반영
+- **AI 포트폴리오 방향성 추천**: 희망 직무·학년과 이전에 만든 포트폴리오를 근거로, "내 정보" 영역에서 다음에 시도하면 좋을 활동과 나만의 강점을 별도로 제안
+- **AI 포트폴리오 생성**: 누적 기록을 STAR(상황-과제-행동-결과)·XYZ(정량적 성과) 형식으로 재구성, 업로드한 결과물(파일·링크)도 함께 반영. AI 호출이 실패해도 기록을 바탕으로 한 기본 초안을 대신 보여줌
 - **포트폴리오 저장·다운로드·모아보기**: 프로젝트별로 저장, `portfolios.html`에서 검색·필터·복사·다운로드
-- **공개 공유**: 포트폴리오를 공개로 전환하면 로그인 없이 누구나 볼 수 있는 공유 링크(`share.html`) 생성
-- **결과물 업로드**: 프로젝트에 파일·링크를 첨부해 포트폴리오와 함께 보관
+- **공개 공유(인터랙티브 슬라이드)**: 포트폴리오를 공개로 전환하면 로그인 없이 누구나 볼 수 있는 공유 링크(`share.html`) 생성. 발표 자료처럼 넘겨보는 슬라이드 뷰, 면접관 모드, AI 기반 스타일 커스터마이징, 블록 편집/실행취소를 지원
+- **결과물 업로드**: 프로젝트에 파일·링크를 첨부해 포트폴리오·공유 페이지에서 함께 확인
 
 ## 에이전트 설계
 
@@ -32,37 +34,46 @@
 | 영역 | 사용 기술 |
 |---|---|
 | 프론트엔드 | Vanilla HTML/CSS/JS (프레임워크 없음) |
-| 인증·DB | Supabase (Postgres, 익명 로그인, Row Level Security) |
+| 인증·DB | Supabase (Postgres, 익명 로그인 + 이메일 회원가입, Row Level Security) |
 | LLM | OpenAI `gpt-4o-mini` |
 | 배포 | Vercel (정적 페이지 + Serverless Functions) |
 
 ## 아키텍처
 
-- 브라우저가 Supabase에 직접 연결(익명 로그인) — `profiles`/`projects`/`logs`/`portfolios` 테이블을 RLS로 사용자별 격리
-- 포트폴리오 생성만 Vercel 서버 함수(`api/portfolio.js`)를 거쳐 OpenAI를 호출 — API 키가 클라이언트에 노출되지 않음
+- 브라우저가 Supabase에 직접 연결 — 별도 로그인 없이 익명 로그인으로 바로 이용 가능하고, `profiles`/`projects`/`logs`/`portfolios` 테이블을 RLS로 사용자별 격리
+- 이메일로 회원가입/로그인하면 익명 계정과는 별개의 새 사용자로 전환됨(현재는 익명 기록을 실 계정으로 이전하는 기능은 없음) — `auth-ui.js`가 로그인 상태에 따라 상단 네비게이션을 로그인/마이페이지 버튼으로 전환
+- 포트폴리오 생성 및 방향성 추천, 공유 페이지의 AI 스타일 생성은 모두 Vercel 서버 함수(`api/portfolio.js`)를 거쳐 OpenAI를 호출 — API 키가 클라이언트에 노출되지 않음
 - 공개로 전환된 포트폴리오(`is_public = true`)만 별도 RLS 정책으로 비로그인 조회 허용 → `share.html`에서 렌더링
 
 ## 폴더 구조
 
-```
-app.html          # 메인 앱 (기록·캘린더·포트폴리오 생성)
-index.html        # app.html과 동일 (Vercel 루트 경로 서빙용)
-portfolios.html   # 저장된 포트폴리오 모아보기 대시보드
-share.html        # 공개 포트폴리오 공유 페이지 (비로그인 접근)
-styles.css        # 공통 스타일
-api/portfolio.js  # OpenAI 호출용 Vercel 서버 함수
-AGENTS.md         # 에이전트 구조 정의
-team_prd.md       # 초기 기획 PRD
-supabase_schema.sql / speckit_inputs.md  # 초기 설계 산출물
-```
+\`\`\`
+app.html              # 메인 앱 (기록·캘린더·포트폴리오 생성)
+index.html            # app.html과 동일 (Vercel 루트 경로 서빙용)
+portfolios.html       # 저장된 포트폴리오 모아보기 대시보드
+share.html            # 공개 포트폴리오 공유 페이지 (비로그인 접근, 슬라이드 뷰어)
+login.html            # 로그인
+signup.html           # 회원가입
+mypage.html           # 마이페이지 (프로필·통계·정보 수정)
+find-id.html          # 아이디 찾기 안내
+reset-password.html   # 비밀번호 재설정 메일 발송
+update-password.html  # 새 비밀번호 설정
+auth-ui.js            # 로그인 상태에 따른 상단 네비게이션 렌더링
+styles.css            # 공통 스타일
+api/portfolio.js      # OpenAI 호출용 Vercel 서버 함수
+api/_supabase.js       # 서버용 Supabase 클라이언트 헬퍼
+AGENTS.md              # 에이전트 구조 정의
+team_prd.md            # 초기 기획 PRD
+supabase_schema.sql / supabase_storage.sql / speckit_inputs.md  # 초기 설계·스키마 산출물
+\`\`\`
 
 ## 로컬 개발
 
-```bash
+\`\`\`bash
 # 의존 도구: Vercel CLI (npx vercel)
 vercel link                  # 프로젝트 연결
 vercel env pull .env.local   # OPENAI_API_KEY 등 환경변수 받아오기
 vercel dev                   # 서버 함수 포함 로컬 실행
-```
+\`\`\`
 
-Supabase URL·anon key는 `app.html`/`portfolios.html`/`share.html`에 직접 포함되어 있습니다(공개용 키, RLS로 보호됨). `OPENAI_API_KEY`는 절대 코드에 넣지 않고 Vercel 환경변수로만 관리합니다.
+Supabase URL·anon key는 각 HTML 파일에 직접 포함되어 있습니다(공개용 키, RLS로 보호됨). `OPENAI_API_KEY`는 절대 코드에 넣지 않고 Vercel 환경변수로만 관리합니다.
