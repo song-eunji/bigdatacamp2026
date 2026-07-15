@@ -418,6 +418,43 @@ body:has(.portfolio-story).style-layout-poster .story-inner > h2 { font-size:cla
     .portfolio-hero h1 { font-size: 23px; }
 }
 
+@media (prefers-color-scheme: light) {
+    body:not(.user-style):has(.portfolio-story) { background:var(--bg); color:var(--text); }
+    body:not(.user-style):has(.portfolio-story) .top-nav,
+    body:not(.user-style):has(.portfolio-story) .byline,
+    body:not(.user-style):has(.portfolio-story) .story-stats span,
+    body:not(.user-style):has(.portfolio-story) .story-index,
+    body:not(.user-style):has(.portfolio-story) .scroll-cue,
+    body:not(.user-style):has(.portfolio-story) .timeline-event p,
+    body:not(.user-style):has(.portfolio-story) .evidence-card small { color:var(--text-soft); }
+    body:not(.user-style):has(.portfolio-story) .story-section { border-color:var(--border); }
+    body:not(.user-style):has(.portfolio-story) .story-section:nth-child(odd) { background:var(--card); }
+    body:not(.user-style):has(.portfolio-story) .story-section:nth-child(even) { background:var(--primary-soft); }
+    body:not(.user-style):has(.portfolio-story) .story-cover-section { background:radial-gradient(circle at 75% 35%,#DED7FF 0,#F0EDFF 38%,var(--bg) 72%) !important; }
+    body:not(.user-style):has(.portfolio-story) .story-cover-section::after { border-color:rgba(102,71,224,.18); box-shadow:0 0 0 60px rgba(124,92,252,.04),0 0 0 120px rgba(124,92,252,.025); }
+    body:not(.user-style):has(.portfolio-story) .story-inner > h2,
+    body:not(.user-style):has(.portfolio-story) .story-cover h1,
+    body:not(.user-style):has(.portfolio-story) .story-content strong,
+    body:not(.user-style):has(.portfolio-story) .story-stats strong,
+    body:not(.user-style):has(.portfolio-story) .timeline-event strong { color:var(--text); }
+    body:not(.user-style):has(.portfolio-story) .story-content,
+    body:not(.user-style):has(.portfolio-story) .story-content p,
+    body:not(.user-style):has(.portfolio-story) .story-content li,
+    body:not(.user-style):has(.portfolio-story) .story-cover p { color:#555268; }
+    body:not(.user-style):has(.portfolio-story) .eyebrow,
+    body:not(.user-style):has(.portfolio-story) .story-content a { color:var(--primary-dark); }
+    body:not(.user-style):has(.portfolio-story) .story-dot { background:var(--bg); }
+    body:not(.user-style):has(.portfolio-story) .story-content .activity-card,
+    body:not(.user-style):has(.portfolio-story) .story-content .evidence-card { background:rgba(255,255,255,.72); border-color:var(--border); color:var(--text); }
+    body:not(.user-style):has(.portfolio-story) .story-content .activity-card summary,
+    body:not(.user-style):has(.portfolio-story) .story-content .evidence-card > a,
+    body:not(.user-style):has(.portfolio-story) .story-content .evidence-card strong { color:var(--text); }
+    body:not(.user-style):has(.portfolio-story) .timeline-event > span { background:var(--card); }
+    body:not(.user-style):has(.portfolio-story) .view-action,
+    body:not(.user-style):has(.portfolio-story) .style-request { background:rgba(255,255,255,.88); border-color:var(--border); color:var(--text-soft); }
+    body:not(.user-style):has(.portfolio-story) .style-request input { background:var(--bg); border-color:var(--border); color:var(--text); }
+}
+
 @media (prefers-color-scheme: dark) {
     :root {
         --primary: #A493FF;
