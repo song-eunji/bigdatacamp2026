@@ -46,8 +46,9 @@
             return;
         }
 
-        // is_public = true인 포트폴리오는 RLS 정책상 로그인 없이도 조회 가능
-        const { data, error } = await sb.from('portfolios').select('*').eq('id', id).eq('is_public', true).maybeSingle();
+        // is_public = true면 로그인 없이도 조회 가능하고(RLS), 본인 소유 포트폴리오는 비공개 상태여도 본인 세션으로 미리보기 가능
+        const { data: { session } } = await sb.auth.getSession();
+        const { data, error } = await sb.from('portfolios').select('*').eq('id', id).maybeSingle();
 
         loadingEl.style.display = 'none';
 
@@ -59,11 +60,14 @@
         document.title = `${data.project_name || '포트폴리오'} — 공유된 포트폴리오`;
         document.getElementById('shareByline').textContent =
             `${data.project_name || '프로젝트'} · ${(data.created_at || '').slice(0, 10)} 작성`;
-        renderInteractivePortfolio(data.content);
+        window.currentPortfolioId = id;
+        window.isPortfolioOwner = Boolean(session?.user && session.user.id === data.user_id);
+        renderInteractivePortfolio(data.content, data.slide_html, data.is_public);
         boxEl.style.display = 'block';
     }
 
-    function renderInteractivePortfolio(markdown) {
+    function renderInteractivePortfolio(markdown, savedSlideHtml, isPublic) {
+        const isOwner = window.isPortfolioOwner;
         const source = document.createElement('div');
         source.innerHTML = marked.parse(markdown);
         const title = source.querySelector('h1')?.textContent || '포트폴리오';
@@ -75,13 +79,20 @@
                 node = node.nextElementSibling;
             }
             return { title: heading.textContent, content: content.innerHTML };
-        });
+        }).filter(section => !/결과물/.test(section.title));
         const summary = sections.find(section => /한 줄 요약|요약/.test(section.title));
         const links = [...source.querySelectorAll('a[href]')]
             .map(link => ({ name: link.textContent.trim() || link.href, url: link.href }))
             .filter((link, index, all) => all.findIndex(item => item.url === link.url) === index);
         const projectTitle = title.replace(/ 포트폴리오$/, '');
-        const dates = [...new Set(markdown.match(/\b(?:20\d{2}[./-])?\d{1,2}[./-]\d{1,2}\b/g) || [])];
+        const parseLooseDate = str => {
+            const parts = str.split(/[./-]/).map(Number);
+            if (parts.length === 3) return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+            if (parts.length === 2) return new Date(2000, parts[0] - 1, parts[1]).getTime();
+            return 0;
+        };
+        const dates = [...new Set(markdown.match(/\b(?:20\d{2}[./-])?\d{1,2}[./-]\d{1,2}\b/g) || [])]
+            .sort((a, b) => parseLooseDate(a) - parseLooseDate(b));
         const timeline = dates.length ? { title: '프로젝트 흐름', content: `<div class="story-timeline">${dates.map((date, index) => `<div class="timeline-event"><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(date)}</strong><p>${index === 0 ? '프로젝트 기록이 시작된 날' : index === dates.length - 1 ? '현재까지 쌓인 마지막 기록' : '활동 기록과 성장의 순간'}</p></div>`).join('')}</div>` } : null;
         const stories = [
             { title: '프로젝트 한눈에 보기', content: `<div class="story-cover"><span class="eyebrow">A STORY OF WORK</span><h1>${escapeHtml(projectTitle)}</h1><p>${summary ? summary.content.replace(/<[^>]*>/g, ' ').trim() : '기록에서 발견한 성장의 순간을 모았습니다.'}</p><span class="scroll-cue">SCROLL TO EXPLORE <b>↓</b></span></div>` },
@@ -91,7 +102,17 @@
         ];
         const statCards = `<div class="story-stats"><div><strong data-count="${sections.length}">0</strong><span>STORIES</span></div><div><strong data-count="${links.length}">0</strong><span>REFERENCES</span></div><div><strong data-count="${sections.filter(s => /활동|성과|문제|역할/.test(s.title)).length}">0</strong><span>HIGHLIGHTS</span></div></div>`;
         document.getElementById('shareContent').innerHTML = `
-            <div class="view-toolbar" aria-label="보기 방식"><button class="view-action" data-view="interview">면접관 모드</button><button class="view-action" data-action="style">🎨 스타일 요청</button><button class="view-action" data-action="edit">✎ 편집</button></div>
+            <div class="view-toolbar" aria-label="보기 방식">
+                <button class="view-action" data-view="interview">면접관 모드</button>
+                <button class="view-action" data-action="pdf">⬇ PDF로 내보내기</button>
+                ${isOwner ? `
+                <button class="view-action" data-action="style">🎨 스타일 요청</button>
+                <button class="view-action" data-action="edit">✎ 편집</button>
+                <button class="view-action" data-action="toggle-public">${isPublic ? '🔒 비공개로 전환' : '🌐 공개로 전환'}</button>
+                ${isPublic ? '<button class="view-action" data-action="copy-link">🔗 공유 링크 복사</button>' : ''}
+                <span id="saveStatus" class="save-status" aria-live="polite"></span>
+                ` : ''}
+            </div>
             <div class="style-request" id="styleRequest" hidden><input id="stylePrompt" type="text" placeholder="예: 차분한 베이지 잡지 스타일로 만들어줘"><button id="previewStyleBtn" type="button">미리보기</button><button id="applyStyleBtn" type="button">적용</button><button id="undoStyleBtn" type="button">되돌리기</button><span id="styleStatus" aria-live="polite"></span></div>
             <div class="design-panel" id="designPanel" hidden><button type="button" data-design="slide-add">+ AI 슬라이드</button><button type="button" data-design="slide-up">↑ 위로</button><button type="button" data-design="slide-down">↓ 아래로</button><button type="button" data-design="slide-delete">슬라이드 삭제</button><button type="button" data-design="text">+ 텍스트</button><button type="button" data-design="image">+ 이미지</button><button type="button" data-design="card">+ 카드</button><button type="button" data-design="delete">선택 삭제</button><button type="button" data-design="undo">↶ 실행 취소</button><button type="button" data-design="redo">↷ 다시 실행</button><button type="button" data-design="reset">디자인 초기화</button><label>크기 <input id="designFontSize" type="range" min="12" max="96" value="18"></label><input id="designColor" type="color" value="#ffffff" aria-label="글자 색상"><select id="designAlign" aria-label="정렬"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><span id="designStatus">요소를 클릭해 선택하세요 · 슬라이드는 제목 영역을 클릭하세요</span></div>
             <aside class="story-rail" aria-label="포트폴리오 진행률"><span class="story-rail-fill"></span>${stories.map((story, index) => `<button class="story-dot${index === 0 ? ' active' : ''}" data-story="${index}" aria-label="${escapeHtml(story.title)}"><i>${String(index + 1).padStart(2, '0')}</i></button>`).join('')}</aside>
@@ -107,7 +128,7 @@
             while (heading.nextElementSibling && heading.nextElementSibling.tagName !== 'H3') details.appendChild(heading.nextElementSibling);
             heading.replaceWith(details);
         });
-        setupEditor(markdown);
+        setupEditor(markdown, savedSlideHtml);
         requestAnimationFrame(repairLayout);
         const sectionsEl = [...document.querySelectorAll('.story-section')];
         sectionsEl.forEach((section, index) => {
@@ -130,7 +151,24 @@
         dots.forEach(dot => dot.addEventListener('click', () => sectionsEl[Number(dot.dataset.story)].scrollIntoView({ behavior: 'smooth' })));
         setupViewModes(sectionsEl);
         setupLightbox();
-        setupStyleRequest();
+        document.querySelector('[data-action="pdf"]').addEventListener('click', () => window.print());
+        if (isOwner) {
+            setupStyleRequest();
+            document.querySelector('[data-action="toggle-public"]').addEventListener('click', async () => {
+                await sb.from('portfolios').update({ is_public: !isPublic }).eq('id', window.currentPortfolioId);
+                location.reload();
+            });
+            const copyLinkBtn = document.querySelector('[data-action="copy-link"]');
+            const saveStatusForCopy = document.getElementById('saveStatus');
+            if (copyLinkBtn) {
+                copyLinkBtn.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(location.href.split('?')[0] + '?id=' + window.currentPortfolioId);
+                        if (saveStatusForCopy) { saveStatusForCopy.textContent = '링크를 복사했어요 ✓'; setTimeout(() => saveStatusForCopy.textContent = '', 1500); }
+                    } catch (err) { /* ignore */ }
+                });
+            }
+        }
     }
 
     function repairLayout() {
@@ -264,13 +302,28 @@
         root.style.setProperty('--custom-radius', radius);
     }
 
-    function setupEditor(markdown) {
+    function setupEditor(markdown, savedSlideHtml) {
         const key = `portfolio-edit:${new URLSearchParams(location.search).get('id') || 'default'}`;
         const historyKey = `${key}:history`;
         const redoKey = `${key}:redo`;
-        const saved = localStorage.getItem(key);
+        const saved = localStorage.getItem(key) || savedSlideHtml;
         if (saved) document.querySelector('.portfolio-story').innerHTML = saved;
+        if (!window.isPortfolioOwner) return;
         const story = document.querySelector('.portfolio-story');
+        const saveStatusEl = document.getElementById('saveStatus');
+        let saveTimer = null;
+        const persist = () => {
+            const html = story.innerHTML;
+            localStorage.setItem(key, html);
+            clearTimeout(saveTimer);
+            if (saveStatusEl) saveStatusEl.textContent = '저장 중...';
+            saveTimer = setTimeout(async () => {
+                const id = window.currentPortfolioId;
+                if (!id) return;
+                const { error } = await sb.from('portfolios').update({ slide_html: html }).eq('id', id);
+                if (saveStatusEl) saveStatusEl.textContent = error ? '저장 실패 (이 브라우저에만 남아있어요)' : '저장됨 ✓';
+            }, 800);
+        };
         const checkpoint = () => { const history = JSON.parse(localStorage.getItem(historyKey) || '[]'); history.push(story.innerHTML); localStorage.setItem(historyKey, JSON.stringify(history.slice(-20))); localStorage.removeItem(redoKey); };
         const restoreHistory = direction => {
             const sourceKey = direction === 'undo' ? historyKey : redoKey;
@@ -334,7 +387,7 @@
                 block.style.transform = `translate(${block._moveX}px, ${block._moveY}px)`;
             };
             checkpoint();
-            const stop = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', stop); repairLayout(); localStorage.setItem(key, story.innerHTML); };
+            const stop = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', stop); repairLayout(); persist(); };
             document.addEventListener('pointermove', move); document.addEventListener('pointerup', stop, { once:true });
         };
         const resizeStart = event => {
@@ -343,7 +396,7 @@
             const startX = event.clientX, startY = event.clientY, startWidth = block.offsetWidth, startHeight = block.offsetHeight;
             const move = moveEvent => { block.style.width = `${Math.max(120, startWidth + moveEvent.clientX - startX)}px`; block.style.minHeight = `${Math.max(40, startHeight + moveEvent.clientY - startY)}px`; };
             checkpoint();
-            const stop = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', stop); repairLayout(); localStorage.setItem(key, story.innerHTML); };
+            const stop = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', stop); repairLayout(); persist(); };
             document.addEventListener('pointermove', move); document.addEventListener('pointerup', stop, { once:true });
         };
         const exitEditor = save => {
@@ -356,7 +409,7 @@
             selected = null;
             selectedSlide = null;
             editButton.textContent = '✎ 편집';
-            if (save) localStorage.setItem(key, story.innerHTML);
+            if (save) persist();
         };
         window.closePortfolioEditor = () => exitEditor(true);
         editButton.addEventListener('click', () => {
@@ -374,7 +427,7 @@
             if (id === 'designFontSize') selected.style.fontSize = `${event.target.value}px`;
             if (id === 'designColor') selected.style.color = event.target.value;
             if (id === 'designAlign') selected.style.textAlign = event.target.value;
-            localStorage.setItem(key, story.innerHTML);
+            persist();
         }));
         panel.querySelectorAll('[data-design]').forEach(button => button.addEventListener('click', async () => {
             if (button.dataset.design === 'undo' || button.dataset.design === 'redo') { restoreHistory(button.dataset.design); return; }
@@ -391,7 +444,7 @@
                 refreshStoryRail();
                 enableBlocks();
                 selectSlide(slide);
-                localStorage.setItem(key, story.innerHTML);
+                persist();
                 return;
             }
             if (button.dataset.design === 'slide-delete') {
@@ -400,7 +453,7 @@
                 selectedSlide.remove();
                 selectedSlide = null;
                 refreshStoryRail();
-                localStorage.setItem(key, story.innerHTML);
+                persist();
                 return;
             }
             if (button.dataset.design === 'slide-up' || button.dataset.design === 'slide-down') {
@@ -411,12 +464,18 @@
                 if (button.dataset.design === 'slide-up') sibling.before(selectedSlide);
                 else sibling.after(selectedSlide);
                 refreshStoryRail();
-                localStorage.setItem(key, story.innerHTML);
+                persist();
                 return;
             }
             const target = selected?.closest('.story-section')?.querySelector('.story-content') || story.querySelector('.story-content');
-            if (button.dataset.design === 'reset') { localStorage.removeItem(key); location.reload(); return; }
-            if (button.dataset.design === 'delete') { if (selected) checkpoint(); selected?.remove(); selected = null; localStorage.setItem(key, story.innerHTML); return; }
+            if (button.dataset.design === 'reset') {
+                localStorage.removeItem(key);
+                const id = window.currentPortfolioId;
+                if (id) await sb.from('portfolios').update({ slide_html: null }).eq('id', id);
+                location.reload();
+                return;
+            }
+            if (button.dataset.design === 'delete') { if (selected) checkpoint(); selected?.remove(); selected = null; persist(); return; }
             const block = document.createElement(button.dataset.design === 'card' ? 'details' : 'div');
             block.className = button.dataset.design === 'card' ? 'activity-card design-block' : 'design-block';
             if (button.dataset.design === 'text') { block.textContent = prompt('추가할 텍스트를 입력하세요') || ''; }
@@ -425,7 +484,7 @@
             target.appendChild(block);
             enableBlocks();
             select(block);
-            localStorage.setItem(key, story.innerHTML);
+            persist();
         }));
         function refreshStoryRail() {
             const rail = document.querySelector('.story-rail');
@@ -466,10 +525,13 @@
         if (!/^https?:$/.test(url.protocol)) return '';
         const href = escapeHtml(url.href);
         const lower = url.pathname.toLowerCase();
-        let preview = `<iframe class="evidence-frame" src="${href}" loading="lazy" title="${escapeHtml(link.name)} 미리보기"></iframe>`;
+
         if (/\.(png|jpe?g|gif|webp|svg)$/i.test(lower)) {
-            preview = `<img class="evidence-image" src="${href}" alt="${escapeHtml(link.name)}">`;
-        } else if (/\.pdf$/i.test(lower)) {
+            return `<a class="evidence-photo" href="${href}" target="_blank" rel="noopener"><img src="${href}" alt="${escapeHtml(link.name)}"></a>`;
+        }
+
+        let preview = `<iframe class="evidence-frame" src="${href}" loading="lazy" title="${escapeHtml(link.name)} 미리보기"></iframe>`;
+        if (/\.pdf$/i.test(lower)) {
             preview = `<iframe class="evidence-frame" src="${href}#view=FitH" loading="lazy" title="${escapeHtml(link.name)} PDF 미리보기"></iframe>`;
         } else if (/\.pptx?$/i.test(lower)) {
             const viewer = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url.href)}`;
