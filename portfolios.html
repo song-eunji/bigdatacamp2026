@@ -26,10 +26,7 @@
 
 <section>
     <h2>필터</h2>
-    <div class="row">
-        <select id="projectFilter"></select>
-        <input type="text" id="portfolioSearch" placeholder="🔍 내용 검색">
-    </div>
+    <input type="text" id="portfolioSearch" placeholder="🔍 내용 검색">
 </section>
 
 <section>
@@ -83,6 +80,11 @@
     const DB_NAME = 'portfolioResults';
     const STORE_NAME = 'files';
 
+    function stripCodeFence(text) {
+        const match = text.trim().match(/^```[a-zA-Z]*\n([\s\S]*?)\n?```$/);
+        return match ? match[1].trim() : text;
+    }
+
     function escapeHtml(str) {
         const div = document.createElement('div');
         div.innerText = str;
@@ -126,7 +128,6 @@
         return data.user;
     }
 
-    let filterProjectId = 'all';
     let searchTerm = '';
     let uploadedItems = [];
     let projectsCache = [];
@@ -144,18 +145,6 @@
         document.getElementById('statPortfolios').textContent = portfolioCount || 0;
         document.getElementById('statLogs').textContent = logCount || 0;
     }
-
-    function renderProjectFilter() {
-        const sel = document.getElementById('projectFilter');
-        sel.innerHTML = '<option value="all">전체 프로젝트</option>' +
-            projectsCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-        sel.value = filterProjectId;
-    }
-
-    document.getElementById('projectFilter').addEventListener('change', (e) => {
-        filterProjectId = e.target.value;
-        renderGallery();
-    });
 
     function renderCombineProjectList() {
         const container = document.getElementById('combineProjectList');
@@ -213,9 +202,6 @@
 
 # 종합 포트폴리오
 
-## 한 줄 요약
-(여러 프로젝트를 관통하는 성장·역량을 1~2문장으로. XYZ 형식 지향)
-
 ## 참여 프로젝트 개요
 ${profileLine}각 프로젝트를 한 줄씩 요약 (프로젝트명 - 핵심 활동)
 
@@ -247,7 +233,7 @@ ${logsByProject}`;
             if (!res.ok) throw new Error(data?.error || `요청 실패 (status ${res.status})`);
             if (!data.reply) throw new Error('응답에서 결과를 찾지 못했어요.');
 
-            resultEditEl.value = data.reply.replace(/<br\s*\/?>/gi, '\n');
+            resultEditEl.value = stripCodeFence(data.reply.replace(/<br\s*\/?>/gi, '\n'));
             resultEditEl.dataset.projectName = `종합 포트폴리오 (${projectNames})`;
             resultBoxEl.style.display = 'block';
         } catch (e) {
@@ -420,7 +406,7 @@ ${allLogsText}`;
 
     function renderGallery() {
         const all = portfoliosCache;
-        let list = filterProjectId === 'all' ? all : all.filter(p => String(p.project_id) === String(filterProjectId));
+        let list = all;
         if (searchTerm) {
             list = list.filter(p => p.content.toLowerCase().includes(searchTerm) || (p.project_name || '').toLowerCase().includes(searchTerm));
         }
@@ -647,12 +633,13 @@ ${p.content}`;
         const { data, error } = await sb.from('portfolios').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: true });
         let rows = error ? [] : data;
 
-        const broken = rows.filter(p => /<br\s*\/?>/i.test(p.content));
+        const fixContent = content => stripCodeFence(content.replace(/<br\s*\/?>/gi, '\n'));
+        const broken = rows.filter(p => fixContent(p.content) !== p.content);
         if (broken.length) {
             await Promise.all(broken.map(p =>
-                sb.from('portfolios').update({ content: p.content.replace(/<br\s*\/?>/gi, '\n') }).eq('id', p.id)
+                sb.from('portfolios').update({ content: fixContent(p.content) }).eq('id', p.id)
             ));
-            rows = rows.map(p => broken.includes(p) ? { ...p, content: p.content.replace(/<br\s*\/?>/gi, '\n') } : p);
+            rows = rows.map(p => broken.includes(p) ? { ...p, content: fixContent(p.content) } : p);
         }
 
         portfoliosCache = rows;
@@ -665,7 +652,6 @@ ${p.content}`;
             sb.from('projects').select('*').order('created_at', { ascending: true }),
         ]);
         projectsCache = projects || [];
-        renderProjectFilter();
         renderCombineProjectList();
 
         await loadPortfolios();
