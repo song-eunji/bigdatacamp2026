@@ -19,11 +19,6 @@
             <button type="submit">회원가입</button>
             <div id="signupMessage" class="auth-error" role="alert" hidden></div>
         </form>
-        <div class="oauth-buttons">
-            <button id="googleSignup" type="button">Google로 시작하기</button>
-            <button id="kakaoSignup" type="button">Kakao로 시작하기</button>
-            <button id="naverSignup" type="button">Naver로 시작하기</button>
-        </div>
         <div class="auth-note"><a href="login.html">로그인하러 가기</a> · <a href="index.html">홈으로 돌아가기</a></div>
     </section>
 </main>
@@ -58,20 +53,6 @@
         window.location.href = 'index.html';
     });
 
-    document.getElementById('googleSignup').addEventListener('click', async () => {
-        await authClient.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: `${window.location.origin}/index.html` },
-        });
-    });
-
-    document.getElementById('kakaoSignup').addEventListener('click', () => {
-        // TODO: Kakao OAuth 연결
-    });
-
-    document.getElementById('naverSignup').addEventListener('click', () => {
-        // TODO: Naver OAuth 연결
-    });
 </script>
 </body>
 </html>
