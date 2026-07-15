@@ -197,8 +197,8 @@
         <textarea id="resultEdit" style="min-height:200px;"></textarea>
         <button id="savePortfolioBtn">이 내용으로 저장</button>
         <button class="secondary" id="downloadPortfolioBtn">⬇ 다운로드</button>
-        <span id="saveConfirm">저장했어요 ✓ <a href="portfolios.html">모아보기에서 확인 →</a></span>
     </div>
+    <span id="saveConfirm">저장했어요 ✓ <a href="portfolios.html">모아보기에서 확인 →</a></span>
 </section>
 
 </div>
@@ -1530,7 +1530,8 @@ ${uploadContext || '없음'}`;
             content,
         });
         if (error) { console.error(error); return; }
-        saveConfirmEl.style.display = 'inline';
+        resultBoxEl.style.display = 'none';
+        saveConfirmEl.style.display = 'block';
     });
 
     document.getElementById('downloadPortfolioBtn').addEventListener('click', () => {

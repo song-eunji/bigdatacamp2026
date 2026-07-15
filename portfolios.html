@@ -39,8 +39,8 @@
     <div id="combineResultBox" style="display:none; margin-top:12px;">
         <textarea id="combineResultEdit" style="min-height:200px;"></textarea>
         <button id="combineSaveBtn">이 내용으로 저장</button>
-        <span id="combineSaveConfirm" style="font-size:12px; color:var(--primary); margin-left:8px; display:none; font-weight:600;">저장했어요 ✓</span>
     </div>
+    <span id="combineSaveConfirm" style="font-size:12px; color:var(--primary); margin-top:12px; display:none; font-weight:600;">저장했어요 ✓</span>
 </section>
 
 <section>
@@ -175,6 +175,7 @@
         const genBtn = document.getElementById('combineGenBtn');
         errorEl.style.display = 'none';
         resultBoxEl.style.display = 'none';
+        document.getElementById('combineSaveConfirm').style.display = 'none';
         loadingEl.style.display = 'block';
         genBtn.disabled = true;
 
@@ -256,7 +257,8 @@ ${logsByProject}`;
             content,
         });
         if (error) { console.error(error); return; }
-        document.getElementById('combineSaveConfirm').style.display = 'inline';
+        document.getElementById('combineResultBox').style.display = 'none';
+        document.getElementById('combineSaveConfirm').style.display = 'block';
         await loadPortfolios();
         renderGallery();
         fetchStats();
