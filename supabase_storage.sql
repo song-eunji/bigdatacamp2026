@@ -27,7 +27,6 @@ with check (
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = (select auth.uid()::text)
 );
-
 -- 결과물 첨부 파일용 버킷 (공유 링크에서도 볼 수 있도록 공개)
 insert into storage.buckets (id, name, public)
 values ('uploads', 'uploads', true)
