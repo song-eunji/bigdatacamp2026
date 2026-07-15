@@ -39,6 +39,7 @@ section h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: var(--t
 
 input[type="email"], input[type="password"], input[type="text"], input[type="date"], input[type="time"], textarea, select {
     width: 100%;
+    box-sizing: border-box;
     padding: 12px 14px;
     border: 1.5px solid var(--border);
     border-radius: 12px;
@@ -48,6 +49,20 @@ input[type="email"], input[type="password"], input[type="text"], input[type="dat
     background: #FBFAFF;
     color: var(--text);
     transition: border-color 0.15s, background 0.15s;
+}
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238A8AA3' stroke-width='1.6'><path d='M6 8l4 4 4-4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 34px;
+}
+select, input[type="email"], input[type="password"], input[type="text"], input[type="date"], input[type="time"] {
+    height: 45px;
+    line-height: 1.2;
 }
 input:focus, textarea:focus, select:focus {
     outline: none;
@@ -86,6 +101,11 @@ button.link:hover { transform: none; box-shadow: none; }
 
 .hint { font-size: 12px; color: var(--text-soft); margin-top: 2px; margin-bottom: 8px; }
 .empty { color: var(--text-soft); font-size: 14px; padding: 10px 0; }
+
+.spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; vertical-align: -2px; margin-right: 6px; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+button.secondary.accent { background: var(--primary); color: #fff; }
+button.secondary.accent:hover { background: var(--primary-dark); }
 
 #onboardingScreen { max-width: 460px; margin: 60px auto; }
 
