@@ -89,18 +89,36 @@
 </section>
 
 <section>
-    <h2>프로젝트</h2>
-    <div id="projectButtons" class="cat-btns"></div>
-    <div class="row">
-        <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
-        <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
+    <div class="section-title-row">
+        <h2>프로젝트</h2>
+        <button type="button" class="link project-manage-toggle" id="projectManageToggle" aria-expanded="false">프로젝트 추가/수정</button>
     </div>
+    <div id="projectButtons" class="cat-btns"></div>
+    <div id="projectManager" class="project-manager" hidden>
+        <div class="row">
+            <input type="text" id="newProjectName" placeholder="새 프로젝트/캠프 이름 (예: 빅데이터캠프 2026)">
+            <button id="addProjectBtn" style="flex: 0 0 auto;">추가</button>
+    </div>
+    <div class="hint">프로젝트 이름 옆의 ✎로 수정하고 ×로 삭제할 수 있어요.</div>
+</div>
+<div id="projectRenameModal" class="modal-backdrop" hidden>
+    <div class="project-rename-modal" role="dialog" aria-modal="true" aria-labelledby="projectRenameTitle">
+        <h2 id="projectRenameTitle">프로젝트 이름 수정</h2>
+        <p>프로젝트를 쉽게 구분할 수 있는 이름을 입력해주세요.</p>
+        <input type="text" id="projectRenameInput" maxlength="80" autocomplete="off" placeholder="프로젝트 이름">
+        <div id="projectRenameError" class="project-rename-error" role="alert"></div>
+        <div class="project-rename-actions">
+            <button type="button" class="secondary" id="projectRenameCancel">취소</button>
+            <button type="button" id="projectRenameSave">저장</button>
+        </div>
+    </div>
+</div>
     <div class="hint">프로젝트별로 기록·캘린더·포트폴리오가 따로 관리돼요. 이제 클라우드(Supabase)에 저장돼서 같은 브라우저면 언제든 다시 접속해도 유지돼요.</div>
 </section>
 
 <section>
     <h2>기록 추가</h2>
-    <input type="date" id="logDateInput">
+    <input type="text" id="logDateInput" data-date-input inputmode="none" autocomplete="off" aria-label="기록 날짜" readonly>
     <div id="categoryButtons" class="cat-btns"></div>
     <textarea id="logInput"></textarea>
     <button id="saveBtn">저장</button>
@@ -143,8 +161,8 @@
     <h2>Google Calendar 리마인더</h2>
     <div class="hint">기간을 설정하면 Google Calendar에 매일 알림을 추가할 수 있어요. Google 계정 로그인이나 OAuth는 필요하지 않습니다.</div>
     <div class="row reminder-fields">
-        <label>시작일<input type="date" id="reminderStartDate"></label>
-        <label>종료일<input type="date" id="reminderEndDate"></label>
+        <label>시작일<input type="text" id="reminderStartDate" data-date-input inputmode="none" autocomplete="off" aria-label="리마인더 시작일" readonly></label>
+        <label>종료일<input type="text" id="reminderEndDate" data-date-input inputmode="none" autocomplete="off" aria-label="리마인더 종료일" readonly></label>
         <label>알림 시간<input type="time" id="reminderTime" value="12:00"></label>
     </div>
     <button id="addGoogleReminderBtn">Google Calendar에 추가</button>
@@ -282,6 +300,11 @@
     const logInputEl = document.getElementById('logInput');
     const logDateInputEl = document.getElementById('logDateInput');
     const projectButtonsEl = document.getElementById('projectButtons');
+    const projectManagerEl = document.getElementById('projectManager');
+    const projectManageToggleEl = document.getElementById('projectManageToggle');
+    const projectRenameModalEl = document.getElementById('projectRenameModal');
+    const projectRenameInputEl = document.getElementById('projectRenameInput');
+    const projectRenameErrorEl = document.getElementById('projectRenameError');
     const timelineSearchEl = document.getElementById('timelineSearch');
     const jobRecommendationTextEl = document.getElementById('jobRecommendationText');
 
@@ -298,6 +321,127 @@
     // ── 유틸 ─────────────────────────────
     function todayStr() {
         return new Date().toISOString().slice(0, 10);
+    }
+
+    // 브라우저 기본 date 팝업 대신 사이트 톤에 맞춘 날짜 선택기
+    function initDatePickers() {
+        const inputs = [...document.querySelectorAll('[data-date-input]')];
+        if (!inputs.length) return;
+
+        const popup = document.createElement('div');
+        popup.className = 'date-picker-popup';
+        popup.hidden = true;
+        popup.innerHTML = `
+            <div class="date-picker-top">
+                <strong class="date-picker-title"></strong>
+                <div class="date-picker-nav">
+                    <button type="button" data-date-prev aria-label="이전 달">‹</button>
+                    <button type="button" data-date-next aria-label="다음 달">›</button>
+                </div>
+            </div>
+            <div class="date-picker-weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+            <div class="date-picker-days"></div>
+            <div class="date-picker-footer"><span class="date-picker-hint">날짜를 선택해 주세요</span><button type="button" class="date-picker-today">오늘</button></div>`;
+        document.body.appendChild(popup);
+
+        let activeInput = null;
+        let viewDate = new Date();
+        const title = popup.querySelector('.date-picker-title');
+        const days = popup.querySelector('.date-picker-days');
+        const pad = value => String(value).padStart(2, '0');
+        const toIso = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        const fromIso = value => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+            const [year, month, day] = value.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        };
+        const dateOnly = date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const formatDisplay = value => {
+            const date = fromIso(value);
+            return date ? `${date.getFullYear()}. ${pad(date.getMonth() + 1)}. ${pad(date.getDate())}.` : '';
+        };
+
+        function placePopup() {
+            if (!activeInput || popup.hidden || window.innerWidth <= 520) return;
+            const rect = activeInput.getBoundingClientRect();
+            popup.style.left = `${Math.max(20, rect.left + window.scrollX)}px`;
+            popup.style.top = `${rect.bottom + window.scrollY + 8}px`;
+        }
+
+        function renderPicker() {
+            title.textContent = `${viewDate.getFullYear()}년 ${viewDate.getMonth() + 1}월`;
+            days.innerHTML = '';
+            const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+            const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+            const min = fromIso(activeInput.min);
+            const max = fromIso(activeInput.max);
+            const selected = activeInput.value;
+            const cellCount = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+            for (let index = 0; index < cellCount; index += 1) {
+                const dayNumber = index - firstDay + 1;
+                if (dayNumber < 1 || dayNumber > daysInMonth) {
+                    const empty = document.createElement('span');
+                    empty.className = 'date-picker-empty';
+                    days.appendChild(empty);
+                    continue;
+                }
+                const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), dayNumber);
+                const dateStr = toIso(date);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'date-picker-day';
+                button.textContent = date.getDate();
+                if (date.getMonth() !== viewDate.getMonth()) button.classList.add('is-other-month');
+                if (dateStr === todayStr()) button.classList.add('is-today');
+                if (dateStr === selected) button.classList.add('is-selected');
+                if ((min && dateOnly(date) < dateOnly(min)) || (max && dateOnly(date) > dateOnly(max))) button.disabled = true;
+                button.addEventListener('click', () => {
+                    activeInput.value = dateStr;
+                    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    activeInput.setAttribute('aria-label', `선택한 날짜 ${formatDisplay(dateStr)}`);
+                    closePicker();
+                });
+                days.appendChild(button);
+            }
+        }
+
+        function openPicker(input) {
+            activeInput = input;
+            const selected = fromIso(input.value);
+            viewDate = selected || new Date();
+            popup.hidden = false;
+            placePopup();
+            renderPicker();
+        }
+        function closePicker() {
+            popup.hidden = true;
+            activeInput = null;
+        }
+
+        inputs.forEach(input => {
+            input.addEventListener('click', () => openPicker(input));
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPicker(input); }
+                if (event.key === 'Escape') closePicker();
+            });
+        });
+        popup.querySelector('[data-date-prev]').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() - 1); renderPicker(); });
+        popup.querySelector('[data-date-next]').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() + 1); renderPicker(); });
+        popup.querySelector('.date-picker-today').addEventListener('click', () => {
+            const today = todayStr();
+            const min = fromIso(activeInput.min);
+            const max = fromIso(activeInput.max);
+            activeInput.value = today;
+            activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+            closePicker();
+        });
+        document.addEventListener('click', event => {
+            if (!popup.hidden && activeInput && !popup.contains(event.target) && event.target !== activeInput) closePicker();
+        });
+        window.addEventListener('resize', placePopup);
+        window.addEventListener('scroll', placePopup, true);
     }
 
     // Google Calendar 링크에 사용할 날짜·시간 형식으로 변환하는 함수
@@ -542,9 +686,57 @@
         return data;
     }
 
+    function closeProjectRenameModal() {
+        projectRenameModalEl.hidden = true;
+    }
+
+    function openProjectRenameModal(project) {
+        projectRenameInputEl.value = project.name;
+        projectRenameErrorEl.textContent = '';
+        projectRenameModalEl.hidden = false;
+        projectRenameInputEl.focus();
+        projectRenameInputEl.select();
+
+        const save = async () => {
+            const newName = projectRenameInputEl.value.trim();
+            if (!newName) {
+                projectRenameErrorEl.textContent = '프로젝트 이름을 입력해주세요.';
+                projectRenameInputEl.focus();
+                return;
+            }
+            if (projectsCache.some(item => item.id !== project.id && item.name === newName)) {
+                projectRenameErrorEl.textContent = '이미 같은 이름의 프로젝트가 있어요.';
+                projectRenameInputEl.focus();
+                return;
+            }
+            const saveBtn = document.getElementById('projectRenameSave');
+            saveBtn.disabled = true;
+            const { error } = await sb.from('projects').update({ name: newName }).eq('id', project.id);
+            saveBtn.disabled = false;
+            if (error) {
+                console.error(error);
+                projectRenameErrorEl.textContent = '프로젝트 이름을 수정하지 못했어요.';
+                return;
+            }
+            project.name = newName;
+            closeProjectRenameModal();
+            renderProjectSelect();
+        };
+
+        document.getElementById('projectRenameSave').onclick = save;
+        document.getElementById('projectRenameCancel').onclick = closeProjectRenameModal;
+        projectRenameInputEl.onkeydown = event => {
+            if (event.key === 'Enter') save();
+            if (event.key === 'Escape') closeProjectRenameModal();
+        };
+    }
+
     function renderProjectSelect() {
         projectButtonsEl.innerHTML = '';
+        const manageOpen = !projectManagerEl.hidden;
         projectsCache.forEach(p => {
+            const wrap = document.createElement('span');
+            wrap.style.cssText = 'display:inline-flex; align-items:center;';
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'cat-btn' + (p.id === currentProjectId ? ' active' : '');
@@ -558,7 +750,50 @@
                 await renderAll();
                 if (window.refreshUploads) window.refreshUploads();
             });
-            projectButtonsEl.appendChild(btn);
+            wrap.appendChild(btn);
+
+            if (manageOpen) {
+                const actions = document.createElement('span');
+                actions.className = 'project-actions';
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'cat-icon-btn';
+                editBtn.textContent = '✎';
+                editBtn.title = '프로젝트 이름 수정';
+                editBtn.addEventListener('click', async e => {
+                    e.stopPropagation();
+                    openProjectRenameModal(p);
+                });
+                actions.appendChild(editBtn);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'cat-icon-btn';
+                deleteBtn.textContent = '×';
+                deleteBtn.title = '프로젝트 삭제';
+                deleteBtn.addEventListener('click', async e => {
+                    e.stopPropagation();
+                    if (projectsCache.length <= 1) {
+                        alert('프로젝트가 하나만 남아 있을 때는 삭제할 수 없어요.');
+                        return;
+                    }
+                    if (!confirm(`"${p.name}" 프로젝트를 삭제할까요? 관련 기록도 함께 삭제될 수 있어요.`)) return;
+                    const { error } = await sb.from('projects').delete().eq('id', p.id);
+                    if (error) { console.error(error); alert('프로젝트를 삭제하지 못했어요.'); return; }
+                    projectsCache = projectsCache.filter(project => project.id !== p.id);
+                    if (currentProjectId === p.id) {
+                        currentProjectId = projectsCache[0].id;
+                        localStorage.setItem(CURRENT_PROJECT_KEY, currentProjectId);
+                        selectedDate = null;
+                    }
+                    renderProjectSelect();
+                    await renderAll();
+                    if (window.refreshUploads) window.refreshUploads();
+                });
+                actions.appendChild(deleteBtn);
+                wrap.appendChild(actions);
+            }
+            projectButtonsEl.appendChild(wrap);
         });
     }
 
@@ -629,6 +864,12 @@
             errEl.textContent = e.message;
             errEl.style.display = 'block';
         }
+    });
+
+    projectManageToggleEl.addEventListener('click', () => {
+        projectManagerEl.hidden = !projectManagerEl.hidden;
+        projectManageToggleEl.setAttribute('aria-expanded', String(!projectManagerEl.hidden));
+        renderProjectSelect();
     });
 
     document.getElementById('addProjectBtn').addEventListener('click', async () => {
@@ -844,7 +1085,7 @@
             if (dateStr === selectedDate) el.classList.add('selected');
             el.textContent = d;
             el.addEventListener('click', async () => {
-                if (dateStr <= todayStr()) logDateInputEl.value = dateStr; // 지난 날짜 클릭 시 기록 입력 날짜도 맞춰줌
+                logDateInputEl.value = dateStr; // 달력에서 고른 날짜를 기록 입력 날짜에도 반영
                 selectedDate = (selectedDate === dateStr) ? null : dateStr;
                 renderCalendarAndTimelineOnly();
             });
@@ -915,13 +1156,15 @@
             }
         }
 
-        logs.slice().reverse().forEach(log => {
+        const timelineLogs = logs.slice().reverse();
+        timelineLogs.forEach((log, index) => {
             const li = document.createElement('li');
             li.className = 'log-item';
+            if (index > 0 && timelineLogs[index - 1].date !== log.date) li.classList.add('date-divider');
             const firstLine = log.text.split('\n')[0];
             const preview = firstLine.length > 24 ? firstLine.slice(0, 24) + '…' : firstLine;
-            const catOptions = allCategories().map(c =>
-                `<option value="${escapeHtml(c)}" ${c === log.category ? 'selected' : ''}>${escapeHtml(c)}</option>`
+            const categoryOptions = allCategories().map(c =>
+                `<button type="button" class="category-picker-option${c === log.category ? ' is-selected' : ''}" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`
             ).join('');
 
             li.innerHTML = `
@@ -937,7 +1180,10 @@
                 </div>
                 <div class="log-edit">
                     <textarea>${escapeHtml(log.text)}</textarea>
-                    <select>${catOptions}</select>
+                    <div class="category-picker">
+                        <button type="button" class="category-picker-trigger" data-category="${escapeHtml(log.category || '기타')}"><span class="category-picker-value">${escapeHtml(log.category || '기타')}</span><span class="category-picker-arrow">⌄</span></button>
+                        <div class="category-picker-menu" hidden>${categoryOptions}</div>
+                    </div>
                     <button class="secondary" data-action="save">저장</button>
                     <button class="secondary" data-action="cancel">취소</button>
                 </div>
@@ -945,6 +1191,8 @@
 
             const detailEl = li.querySelector('.log-detail');
             const editEl = li.querySelector('.log-edit');
+            const categoryTrigger = editEl.querySelector('.category-picker-trigger');
+            const categoryMenu = editEl.querySelector('.category-picker-menu');
 
             li.querySelector('.log-summary').addEventListener('click', () => li.classList.toggle('open'));
 
@@ -953,6 +1201,17 @@
                 detailEl.style.display = 'none';
                 editEl.style.display = 'block';
             });
+            categoryTrigger.addEventListener('click', e => {
+                e.stopPropagation();
+                categoryMenu.hidden = !categoryMenu.hidden;
+            });
+            categoryMenu.querySelectorAll('[data-category]').forEach(option => option.addEventListener('click', e => {
+                e.stopPropagation();
+                categoryTrigger.dataset.category = option.dataset.category;
+                categoryTrigger.querySelector('.category-picker-value').textContent = option.dataset.category;
+                categoryMenu.querySelectorAll('[data-category]').forEach(item => item.classList.toggle('is-selected', item === option));
+                categoryMenu.hidden = true;
+            }));
             li.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
                 e.stopPropagation();
                 deleteLog(log.id);
@@ -965,7 +1224,7 @@
             li.querySelector('[data-action="save"]').addEventListener('click', (e) => {
                 e.stopPropagation();
                 const newText = editEl.querySelector('textarea').value.trim();
-                const newCategory = editEl.querySelector('select').value;
+                const newCategory = categoryTrigger.dataset.category;
                 if (!newText) return;
                 updateLog(log.id, newText.slice(0, 500), newCategory);
             });
@@ -1127,7 +1386,6 @@ ${logText}`;
         const _today = new Date();
         calYear = _today.getFullYear();
         calMonth = _today.getMonth();
-        logDateInputEl.max = todayStr();
         logDateInputEl.value = todayStr();
 
         selectedCategory = allCategories()[0];
@@ -1137,6 +1395,7 @@ ${logText}`;
     }
 
     async function init() {
+        initDatePickers();
         currentUser = await ensureAuth();
         profileCache = await fetchProfile();
         if ((profileCache && profileCache.job && profileCache.year) || new URLSearchParams(window.location.search).get('home') === '1') {
