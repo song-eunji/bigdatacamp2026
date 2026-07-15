@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+<main class="auth-page">
+    <h1>로그인</h1>
+    <section>
+        <form id="loginForm" class="auth-form">
+            <input id="loginEmail" type="email" placeholder="이메일을 입력해주세요." autocomplete="email" required>
+            <input id="loginPassword" type="password" placeholder="비밀번호를 입력해주세요." autocomplete="current-password" required>
+            <button type="submit">로그인</button>
+            <div id="loginError" class="auth-error" role="alert" hidden>아이디 또는 비밀번호가 올바르지 않습니다.</div>
+        </form>
+        <div class="login-footer">
+            <div class="login-help-links"><a href="find-id.html">아이디 찾기</a><a href="reset-password.html">비밀번호 찾기</a></div>
+            <a href="signup.html">가입하기</a>
+        </div>
+        <div class="auth-note"><a href="index.html?home=1">← 홈으로 돌아가기</a></div>
+    </section>
+</main>
+<script>
+    const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
+    const authClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    document.getElementById('loginForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const error = document.getElementById('loginError');
+        const { error: loginError } = await authClient.auth.signInWithPassword({
+            email: document.getElementById('loginEmail').value.trim(),
+            password: document.getElementById('loginPassword').value,
+        });
+        if (loginError) {
+            error.hidden = false;
+            return;
+        }
+        window.location.href = 'index.html';
+    });
+</script>
+</body>
+</html>

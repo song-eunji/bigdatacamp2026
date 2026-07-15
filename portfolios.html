@@ -10,7 +10,7 @@
 <body>
 
 <div class="top-nav">
-    <a href="app.html">← 기록으로 돌아가기</a>
+    <a href="app.html" onclick="localStorage.setItem('lastPage', 'app.html')">← 기록으로 돌아가기</a>
     <span></span>
 </div>
 
@@ -38,6 +38,7 @@
 </section>
 
 <script>
+    localStorage.setItem('lastPage', 'portfolios.html');
     const SUPABASE_URL = 'https://svtfrpcjqgzotbdqzdgt.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_fXOS6yGOHTCxs7t0w_a0wA_N2O8by1u';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
