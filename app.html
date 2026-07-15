@@ -165,7 +165,7 @@
     <div class="row reminder-fields">
         <label>시작일<input type="text" id="reminderStartDate" data-date-input inputmode="none" autocomplete="off" aria-label="리마인더 시작일" readonly></label>
         <label>종료일<input type="text" id="reminderEndDate" data-date-input inputmode="none" autocomplete="off" aria-label="리마인더 종료일" readonly></label>
-        <label>알림 시간<input type="time" id="reminderTime" value="12:00"></label>
+        <label>알림 시간<input type="text" id="reminderTime" data-time-input inputmode="none" autocomplete="off" aria-label="알림 시간" readonly value="12:00"></label>
     </div>
     <button id="addGoogleReminderBtn">Google Calendar에 추가</button>
     <div id="reminderStatus" class="hint" role="status"></div>
@@ -412,6 +412,97 @@
         popup.querySelector('[data-date-prev]').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() - 1); renderPicker(); });
         popup.querySelector('[data-date-next]').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() + 1); renderPicker(); });
         popup.querySelector('.date-picker-today').addEventListener('click', () => { activeInput.value = todayStr(); activeInput.dispatchEvent(new Event('change', { bubbles: true })); closePicker(); });
+        document.addEventListener('click', event => { if (!popup.hidden && activeInput && !popup.contains(event.target) && event.target !== activeInput) closePicker(); });
+        window.addEventListener('resize', placePopup);
+        window.addEventListener('scroll', placePopup, true);
+    }
+
+    // 사이트 카드 스타일과 맞춘 시간 선택 팝업 (날짜 선택기와 짝을 이룸)
+    function initTimePicker() {
+        const inputs = [...document.querySelectorAll('[data-time-input]')];
+        if (!inputs.length) return;
+
+        const popup = document.createElement('div');
+        popup.className = 'time-picker-popup';
+        popup.hidden = true;
+        popup.innerHTML = `
+            <div class="time-picker-top"><strong class="time-picker-title">알림 시간</strong></div>
+            <div class="time-picker-cols">
+                <div class="time-picker-col" data-col="hour"></div>
+                <span class="time-picker-colon">:</span>
+                <div class="time-picker-col" data-col="minute"></div>
+            </div>
+            <div class="time-picker-footer"><span class="time-picker-hint">시·분을 선택해 주세요</span><button type="button" class="time-picker-now">지금</button></div>`;
+        document.body.appendChild(popup);
+
+        let activeInput = null;
+        const pad = value => String(value).padStart(2, '0');
+        const hourCol = popup.querySelector('[data-col="hour"]');
+        const minuteCol = popup.querySelector('[data-col="minute"]');
+        const hours = Array.from({ length: 24 }, (_, i) => pad(i));
+        const minutes = Array.from({ length: 12 }, (_, i) => pad(i * 5));
+
+        function placePopup() {
+            if (!activeInput || popup.hidden || window.innerWidth <= 520) return;
+            const rect = activeInput.getBoundingClientRect();
+            popup.style.left = `${Math.max(20, rect.left + window.scrollX)}px`;
+            popup.style.top = `${rect.bottom + window.scrollY + 8}px`;
+        }
+
+        function currentParts() {
+            const match = /^(\d{2}):(\d{2})$/.exec(activeInput.value || '');
+            return match ? { h: match[1], m: match[2] } : { h: '12', m: '00' };
+        }
+
+        function setValue(h, m) {
+            activeInput.value = `${h}:${m}`;
+            activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function renderCol(col, values, selected, onPick) {
+            col.innerHTML = '';
+            values.forEach(value => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'time-picker-option' + (value === selected ? ' is-selected' : '');
+                button.textContent = value;
+                button.addEventListener('click', event => { event.stopPropagation(); onPick(value); renderPicker(); });
+                col.appendChild(button);
+            });
+        }
+
+        function renderPicker() {
+            const { h, m } = currentParts();
+            renderCol(hourCol, hours, h, value => setValue(value, currentParts().m));
+            renderCol(minuteCol, minutes, m, value => setValue(currentParts().h, value));
+            const selectedHour = hourCol.querySelector('.is-selected');
+            if (selectedHour) selectedHour.scrollIntoView({ block: 'center' });
+            const selectedMinute = minuteCol.querySelector('.is-selected');
+            if (selectedMinute) selectedMinute.scrollIntoView({ block: 'center' });
+        }
+
+        function openPicker(input) {
+            activeInput = input;
+            if (!/^\d{2}:\d{2}$/.test(input.value || '')) setValue('12', '00');
+            popup.hidden = false;
+            placePopup();
+            renderPicker();
+        }
+        function closePicker() { popup.hidden = true; activeInput = null; }
+
+        inputs.forEach(input => {
+            input.addEventListener('click', () => openPicker(input));
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPicker(input); }
+                if (event.key === 'Escape') closePicker();
+            });
+        });
+        popup.querySelector('.time-picker-now').addEventListener('click', () => {
+            const now = new Date();
+            setValue(pad(now.getHours()), pad(Math.floor(now.getMinutes() / 5) * 5));
+            renderPicker();
+        });
         document.addEventListener('click', event => { if (!popup.hidden && activeInput && !popup.contains(event.target) && event.target !== activeInput) closePicker(); });
         window.addEventListener('resize', placePopup);
         window.addEventListener('scroll', placePopup, true);
@@ -1520,6 +1611,7 @@ ${uploadContext || '없음'}`;
 
     async function init() {
         initDatePickers();
+        initTimePicker();
         currentUser = await ensureAuth();
         profileCache = await fetchProfile();
         if ((profileCache && profileCache.job && profileCache.year) || new URLSearchParams(window.location.search).get('home') === '1') {

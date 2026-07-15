@@ -342,6 +342,39 @@ ul#timeline, ul#portfolioList { list-style: none; padding: 0; margin: 0; }
     .date-picker-empty { min-height: 42px; }
 }
 
+/* 날짜 선택 팝업과 짝을 이루는 시간 선택 팝업 */
+.time-picker-popup {
+    position: absolute;
+    z-index: 25;
+    width: min(220px, calc(100vw - 40px));
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: var(--card);
+    box-shadow: 0 18px 48px rgba(47, 34, 105, .18);
+    animation: date-picker-in .14s ease-out;
+}
+.time-picker-popup[hidden] { display: none; }
+.time-picker-top { margin-bottom: 14px; }
+.time-picker-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.time-picker-cols { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.time-picker-colon { font-size: 18px; font-weight: 800; color: var(--text-soft); }
+.time-picker-col { display: flex; flex-direction: column; gap: 4px; width: 68px; max-height: 190px; overflow-y: auto; scroll-behavior: smooth; padding: 2px; }
+.time-picker-option { min-height: 36px; padding: 0; margin: 0; border-radius: 12px; background: transparent; color: var(--text); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.time-picker-option:hover { transform: none; box-shadow: none; background: var(--primary-soft); color: var(--primary-dark); }
+.time-picker-option.is-selected { background: var(--primary); color: #fff; box-shadow: 0 5px 12px rgba(124,92,252,.25); }
+.time-picker-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.time-picker-hint { color: var(--text-soft); font-size: 11px; }
+.time-picker-now { padding: 5px 10px; margin: 0; background: var(--primary-soft); color: var(--primary-dark); font-size: 11px; box-shadow: none; }
+.time-picker-now:hover { transform: none; box-shadow: none; background: #E4DFFF; }
+
+@media (max-width: 520px) {
+    .time-picker-popup { position: fixed; left: 20px !important; right: 20px; bottom: 20px; top: auto !important; width: auto; padding: 20px; border-radius: 24px; }
+    .time-picker-cols { justify-content: space-evenly; }
+    .time-picker-col { width: 40%; max-height: 220px; }
+    .time-picker-option { min-height: 42px; }
+}
+
 /* 공개 포트폴리오: 발표 자료처럼 넘겨보는 웹 슬라이드 */
 .deck-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
 .deck-toolbar span { font-size:12px; color:var(--text-soft); font-weight:700; }
