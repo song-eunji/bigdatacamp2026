@@ -71,6 +71,11 @@
         const source = document.createElement('div');
         source.innerHTML = marked.parse(markdown);
         const title = source.querySelector('h1')?.textContent || '포트폴리오';
+        const resultCases = [...source.querySelectorAll('.result-case')].map(result => {
+            const story = { title: `결과물 · ${result.dataset.resultName || '성과 증거'}`, content: result.outerHTML };
+            result.remove();
+            return story;
+        });
         const sections = [...source.querySelectorAll('h2')].map((heading, index, headings) => {
             const content = document.createElement('div');
             let node = heading.nextElementSibling;
@@ -82,7 +87,7 @@
         }).filter(section => !/결과물/.test(section.title));
         const summary = sections.find(section => /한 줄 요약|요약/.test(section.title));
         const links = [...source.querySelectorAll('a[href]')]
-            .map(link => ({ name: link.textContent.trim() || link.href, url: link.href }))
+            .map(link => ({ name: link.querySelector('img')?.alt || link.textContent.trim() || link.href, url: link.href }))
             .filter((link, index, all) => all.findIndex(item => item.url === link.url) === index);
         const projectTitle = title.replace(/ 포트폴리오$/, '');
         const parseLooseDate = str => {
@@ -98,9 +103,10 @@
             { title: '프로젝트 한눈에 보기', content: `<div class="story-cover"><span class="eyebrow">A STORY OF WORK</span><h1>${escapeHtml(projectTitle)}</h1><p>${summary ? summary.content.replace(/<[^>]*>/g, ' ').trim() : '기록에서 발견한 성장의 순간을 모았습니다.'}</p><span class="scroll-cue">SCROLL TO EXPLORE <b>↓</b></span></div>` },
             ...(timeline ? [timeline] : []),
             ...sections.map(section => ({ title: section.title, content: section.content })),
+            ...resultCases,
             ...(links.length ? [{ title: '결과물·참고 자료', content: `<div class="evidence-grid">${links.map(renderEvidence).join('')}</div>` }] : [])
         ];
-        const statCards = `<div class="story-stats"><div><strong data-count="${sections.length}">0</strong><span>STORIES</span></div><div><strong data-count="${links.length}">0</strong><span>REFERENCES</span></div><div><strong data-count="${sections.filter(s => /활동|성과|문제|역할/.test(s.title)).length}">0</strong><span>HIGHLIGHTS</span></div></div>`;
+        const statCards = `<div class="story-stats"><div><strong data-count="${sections.length}">0</strong><span>STORIES</span></div><div><strong data-count="${links.length + resultCases.length}">0</strong><span>REFERENCES</span></div><div><strong data-count="${sections.filter(s => /활동|성과|문제|역할/.test(s.title)).length}">0</strong><span>HIGHLIGHTS</span></div></div>`;
         document.getElementById('shareContent').innerHTML = `
             <div class="view-toolbar" aria-label="보기 방식">
                 <button class="view-action" data-view="interview">면접관 모드</button>
@@ -237,7 +243,8 @@
         lightbox.id = 'mediaLightbox';
         lightbox.innerHTML = '<button type="button" aria-label="닫기">×</button><img alt="">';
         document.body.appendChild(lightbox);
-        document.querySelectorAll('.evidence-image').forEach(image => image.addEventListener('click', () => {
+        document.querySelectorAll('.evidence-image').forEach(image => image.addEventListener('click', event => {
+            event.preventDefault();
             lightbox.querySelector('img').src = image.src;
             lightbox.classList.add('open');
         }));
@@ -550,7 +557,7 @@
         const lower = url.pathname.toLowerCase();
 
         if (/\.(png|jpe?g|gif|webp|svg)$/i.test(lower)) {
-            return `<a class="evidence-photo" href="${href}" target="_blank" rel="noopener"><img src="${href}" alt="${escapeHtml(link.name)}"></a>`;
+            return `<a class="evidence-photo" href="${href}" target="_blank" rel="noopener"><img class="evidence-image" src="${href}" alt="${escapeHtml(link.name)}"></a>`;
         }
 
         let preview = `<iframe class="evidence-frame" src="${href}" loading="lazy" title="${escapeHtml(link.name)} 미리보기"></iframe>`;
