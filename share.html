@@ -114,7 +114,7 @@
                 ` : ''}
             </div>
             <div class="style-request" id="styleRequest" hidden><input id="stylePrompt" type="text" placeholder="예: 차분한 베이지 잡지 스타일로 만들어줘"><button id="previewStyleBtn" type="button">미리보기</button><button id="applyStyleBtn" type="button">적용</button><button id="undoStyleBtn" type="button">되돌리기</button><span id="styleStatus" aria-live="polite"></span></div>
-            <div class="design-panel" id="designPanel" hidden><button type="button" data-design="slide-add">+ AI 슬라이드</button><button type="button" data-design="slide-up">↑ 위로</button><button type="button" data-design="slide-down">↓ 아래로</button><button type="button" data-design="slide-delete">슬라이드 삭제</button><button type="button" data-design="text">+ 텍스트</button><button type="button" data-design="image">+ 이미지</button><button type="button" data-design="card">+ 카드</button><button type="button" data-design="delete">선택 삭제</button><button type="button" data-design="undo">↶ 실행 취소</button><button type="button" data-design="redo">↷ 다시 실행</button><button type="button" data-design="reset">디자인 초기화</button><label>크기 <input id="designFontSize" type="range" min="12" max="96" value="18"></label><input id="designColor" type="color" value="#ffffff" aria-label="글자 색상"><select id="designAlign" aria-label="정렬"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><span id="designStatus">요소를 클릭해 선택하세요 · 슬라이드는 제목 영역을 클릭하세요</span></div>
+            <div class="design-panel" id="designPanel" hidden><input id="aiSlideTitle" type="text" placeholder="슬라이드 제목" aria-label="AI 슬라이드 제목" style="width:140px;margin:0;padding:8px 10px"><input id="aiSlideBrief" type="text" placeholder="슬라이드에 담을 내용" aria-label="AI 슬라이드 내용" style="width:220px;margin:0;padding:8px 10px"><button type="button" data-design="slide-add">+ AI 슬라이드</button><button type="button" data-design="slide-up">↑ 위로</button><button type="button" data-design="slide-down">↓ 아래로</button><button type="button" data-design="slide-delete">슬라이드 삭제</button><button type="button" data-design="text">+ 텍스트</button><button type="button" data-design="image">+ 이미지</button><button type="button" data-design="card">+ 카드</button><button type="button" data-design="delete">선택 삭제</button><button type="button" data-design="undo">↶ 실행 취소</button><button type="button" data-design="redo">↷ 다시 실행</button><button type="button" data-design="reset">디자인 초기화</button><label>크기 <input id="designFontSize" type="range" min="12" max="96" value="18"></label><input id="designColor" type="color" value="#ffffff" aria-label="글자 색상"><select id="designAlign" aria-label="정렬"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select><span id="designStatus">요소를 클릭해 선택하세요 · 슬라이드는 제목 영역을 클릭하세요</span></div>
             <aside class="story-rail" aria-label="포트폴리오 진행률"><span class="story-rail-fill"></span>${stories.map((story, index) => `<button class="story-dot${index === 0 ? ' active' : ''}" data-story="${index}" aria-label="${escapeHtml(story.title)}"><i>${String(index + 1).padStart(2, '0')}</i></button>`).join('')}</aside>
             <div class="story-stats-top">${statCards}</div>
             <div class="portfolio-story">${stories.map((story, index) => `<article class="story-section${index === 0 ? ' story-cover-section' : ''}" data-story-section="${index}"><span class="story-index">${String(index + 1).padStart(2, '0')}</span><div class="story-inner"><h2>${escapeHtml(story.title)}</h2><div class="story-content">${story.content}</div></div></article>`).join('')}</div>`;
@@ -143,13 +143,14 @@
         const observer = new IntersectionObserver(entries => entries.forEach(entry => {
             if (!entry.isIntersecting) return;
             const index = Number(entry.target.dataset.storySection);
-            dots.forEach(dot => dot.classList.toggle('active', Number(dot.dataset.story) === index));
-            railFill.style.height = `${index / Math.max(1, sectionsEl.length - 1) * 100}%`;
+            document.querySelectorAll('.story-dot').forEach(dot => dot.classList.toggle('active', Number(dot.dataset.story) === index));
+            railFill.style.height = `${index / Math.max(1, document.querySelectorAll('.story-section').length - 1) * 100}%`;
             entry.target.classList.add('is-visible');
         }), { threshold: .35 });
+        window.storyObserver = observer;
         sectionsEl.forEach(section => observer.observe(section));
         dots.forEach(dot => dot.addEventListener('click', () => sectionsEl[Number(dot.dataset.story)].scrollIntoView({ behavior: 'smooth' })));
-        setupViewModes(sectionsEl);
+        setupViewModes();
         setupLightbox();
         document.querySelector('[data-action="pdf"]').addEventListener('click', () => window.print());
         if (isOwner) {
@@ -200,7 +201,7 @@
         requestAnimationFrame(tick);
     }
 
-    function setupViewModes(sections) {
+    function setupViewModes() {
         const buttons = [...document.querySelectorAll('[data-view]')];
         const visibleFor = mode => {
             if (mode === 'summary') return section => section.dataset.title.includes('한눈에') || /요약|개요/.test(section.dataset.title);
@@ -208,6 +209,7 @@
             return () => true;
         };
         buttons.forEach(button => button.addEventListener('click', () => {
+            const sections = [...document.querySelectorAll('.story-section')];
             const mode = button.dataset.view;
             window.closePortfolioEditor?.();
             buttons.forEach(item => item.classList.toggle('active', item === button));
@@ -432,19 +434,38 @@
         panel.querySelectorAll('[data-design]').forEach(button => button.addEventListener('click', async () => {
             if (button.dataset.design === 'undo' || button.dataset.design === 'redo') { restoreHistory(button.dataset.design); return; }
             if (button.dataset.design === 'slide-add') {
+                const titleInput = panel.querySelector('#aiSlideTitle');
+                const briefInput = panel.querySelector('#aiSlideBrief');
+                const title = titleInput.value.trim() || '새로운 이야기';
+                const brief = briefInput.value.trim();
+                if (!brief) { panel.querySelector('#designStatus').textContent = '슬라이드 내용을 입력해주세요.'; briefInput.focus(); return; }
                 checkpoint();
-                const title = prompt('새 슬라이드 제목을 입력하세요', '새로운 이야기') || '새로운 이야기';
                 panel.querySelector('#designStatus').textContent = '기존 포트폴리오를 바탕으로 내용을 생성하는 중...';
-                const body = await generateSlideBody(title, markdown);
                 const slide = document.createElement('article');
-                slide.className = 'story-section';
-                slide.innerHTML = `<span class="story-index"></span><div class="story-inner"><h2>${escapeHtml(title)}</h2><div class="story-content"><p>${escapeHtml(body)}</p></div></div>`;
+                slide.className = 'story-section is-visible';
+                slide.innerHTML = `<span class="story-index"></span><div class="story-inner"><h2>${escapeHtml(title)}</h2><div class="story-content"><p>AI가 내용을 생성하는 중...</p></div></div>`;
                 (selectedSlide || story.lastElementChild).after(slide);
                 slide.addEventListener('click', event => { if (document.body.classList.contains('design-mode') && !event.target.closest('.design-block')) { event.stopPropagation(); selectSlide(slide); } });
                 refreshStoryRail();
+                window.storyObserver?.observe(slide);
                 enableBlocks();
                 selectSlide(slide);
-                persist();
+                button.disabled = true;
+                try {
+                    const body = await generateSlideBody(title, brief, markdown);
+                    slide.querySelector('.story-content p').textContent = body;
+                    titleInput.value = '';
+                    briefInput.value = '';
+                    panel.querySelector('#designStatus').textContent = 'AI 슬라이드를 추가했어요.';
+                    persist();
+                } catch (error) {
+                    slide.remove();
+                    selectedSlide = null;
+                    refreshStoryRail();
+                    panel.querySelector('#designStatus').textContent = error.message || 'AI 슬라이드 생성에 실패했어요.';
+                } finally {
+                    button.disabled = false;
+                }
                 return;
             }
             if (button.dataset.design === 'slide-delete') {
@@ -491,26 +512,28 @@
             const sections = [...story.querySelectorAll('.story-section')];
             rail.querySelectorAll('.story-dot').forEach(dot => dot.remove());
             sections.forEach((section, index) => {
+                const title = section.querySelector('.story-inner > h2')?.textContent.trim() || `슬라이드 ${index + 1}`;
                 section.dataset.storySection = index;
+                section.dataset.title = title;
+                section.dataset.search = `${title} ${section.textContent}`.toLowerCase();
                 section.querySelector('.story-index').textContent = String(index + 1).padStart(2, '0');
                 const dot = document.createElement('button');
                 dot.className = `story-dot${index === 0 ? ' active' : ''}`;
                 dot.dataset.story = index;
-                dot.setAttribute('aria-label', `슬라이드 ${index + 1}`);
+                dot.setAttribute('aria-label', title);
                 dot.onclick = () => section.scrollIntoView({ behavior:'smooth' });
                 rail.appendChild(dot);
             });
         }
     }
 
-    async function generateSlideBody(title, markdown) {
-        const fallback = `${title}에 대한 내용을 이 프로젝트의 활동 기록과 연결해 정리해보세요.`;
-        try {
-            const response = await fetch('/api/portfolio', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt:`아래 포트폴리오 기록을 참고해 "${title}"이라는 웹 슬라이드 본문을 한국어 3~5문장으로 작성하세요. 기록에 없는 사실이나 수치는 만들지 마세요. 마크다운 없이 본문만 반환하세요.\n\n${markdown.slice(0, 9000)}` }) });
-            const data = await response.json();
-            if (!response.ok || !data.reply) return fallback;
-            return data.reply.trim();
-        } catch { return fallback; }
+    async function generateSlideBody(title, brief, markdown) {
+        const response = await fetch('/api/portfolio', { method:'POST', headers:{'Content-Type':'application/json'}, signal:AbortSignal.timeout(15000), body:JSON.stringify({ prompt:`아래 사용자가 입력한 내용과 포트폴리오 기록을 참고해 "${title}"이라는 웹 슬라이드 본문을 한국어 3~5문장으로 새로 작성하세요. 사용자 입력을 그대로 복사하지 말고, 핵심을 발견해 구체적인 슬라이드 문장으로 재구성하세요. 입력과 기록에 없는 사실이나 수치는 만들지 마세요. 마크다운 없이 본문만 반환하세요.\n\n[사용자 입력]\n${brief.slice(0, 2000)}\n\n[포트폴리오 기록]\n${markdown.slice(0, 7000)}` }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(response.status === 401 ? 'OpenAI API 키를 확인해주세요.' : 'AI 요청에 실패했어요.');
+        const reply = data.reply?.trim();
+        if (!reply) throw new Error('AI가 내용을 만들지 못했어요. 다시 시도해주세요.');
+        return reply;
     }
 
     function rgbToHex(rgb) {
